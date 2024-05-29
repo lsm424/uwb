@@ -1,0 +1,17 @@
+# 接入类型：upd、serial
+access_type: 'udp'
+udp_port: 9999
+serial:
+  port: 'COM1'
+  baudrate: 115200
+  # 5, 6, 7, 8
+  bytesize: 8
+  # 'N', 'E', 'O', 'M', 'S'
+  parity: 'N'
+  # 1, 1.5, 2
+  stopbits: 1
+
+# 并行提取测量值的子进程数量
+#parase_worker_cnt: 4
+
+gui: true

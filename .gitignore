@@ -1,0 +1,6 @@
+*.log
+.idea
+__pycache__
+out_file
+tmp.py
+Pipfile
