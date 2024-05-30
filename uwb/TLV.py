@@ -54,6 +54,7 @@ class Tlv:
     # 解析测量值
     def parase(self):
         self.result = self.proto_handler.parase(self.length, self.value)
+        return self
 
     # # 写文件
     # def save_file(self):

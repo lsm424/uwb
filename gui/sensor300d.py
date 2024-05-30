@@ -40,6 +40,14 @@ class Sensor300dWidght(QWidget):
         self.batt_lineedit.setReadOnly(True)
         batt_layout.addWidget(self.batt_lineedit)
         up_layout.addLayout(batt_layout)
+
+        tagid_layout = QHBoxLayout()
+        tagid_layout.addWidget(QLabel('tagid：'))
+        self.tag_id_combox = QComboBox()
+        self.tag_id_combox.currentIndexChanged.connect(self.tagid_selection_changed)
+        self.cur_tag_id = None
+        tagid_layout.addWidget(self.tag_id_combox)
+        up_layout.addLayout(tagid_layout)
         self.main_layout.addLayout(up_layout)
 
         down_layout = QHBoxLayout()
@@ -51,11 +59,11 @@ class Sensor300dWidght(QWidget):
         self.pw1.setLabel('bottom', "polling")  # 设置X轴标签
         self.acc_x, self.acc_y, self.acc_z = [], [], []
         self.plot_acc_x = self.pw1.plot(self.x_polling, self.acc_x, pen=pg.mkPen(color=(0, 0, 100), width=3),
-                                      symbol='s', symbolBrush='r', name='acc_x')
-        self.plot_acc_y = self.pw1.plot(self.x_polling, self.acc_y, pen=pg.mkPen(color=(0, 0, 100), width=3),
+                                      symbol='s', symbolBrush='b', name='acc_x')
+        self.plot_acc_y = self.pw1.plot(self.x_polling, self.acc_y, pen=pg.mkPen(color=(0, 100, 0), width=3),
                                       symbol='s', symbolBrush='g', name='acc_y')
-        self.plot_acc_z = self.pw1.plot(self.x_polling, self.acc_z, pen=pg.mkPen(color=(0, 0, 100), width=3),
-                                      symbol='s', symbolBrush='b', name='acc_z')
+        self.plot_acc_z = self.pw1.plot(self.x_polling, self.acc_z, pen=pg.mkPen(color=(100, 0, 0), width=3),
+                                      symbol='s', symbolBrush='r', name='acc_z')
         down_layout.addWidget(self.pw1)
         # 创建一个图例
         legend = pg.LegendItem(offset=(60, 20))
@@ -75,11 +83,11 @@ class Sensor300dWidght(QWidget):
         self.pw2.setLabel('bottom', "polling")  # 设置X轴标签
         self.gyr_x, self.gyr_y, self.gyr_z = [], [], []
         self.plot_gyr_x = self.pw2.plot(self.x_polling, self.gyr_x, pen=pg.mkPen(color=(0, 0, 100), width=3),
-                                      symbol='s', symbolBrush='r', name='gyr_x')
-        self.plot_gyr_y = self.pw2.plot(self.x_polling, self.gyr_y, pen=pg.mkPen(color=(0, 0, 100), width=3),
+                                      symbol='s', symbolBrush='b', name='gyr_x')
+        self.plot_gyr_y = self.pw2.plot(self.x_polling, self.gyr_y, pen=pg.mkPen(color=(0, 100, 0), width=3),
                                       symbol='s', symbolBrush='g', name='gyr_y')
-        self.plot_gyr_z = self.pw2.plot(self.x_polling, self.gyr_z, pen=pg.mkPen(color=(0, 0, 100), width=3),
-                                      symbol='s', symbolBrush='b', name='gyr_z')
+        self.plot_gyr_z = self.pw2.plot(self.x_polling, self.gyr_z, pen=pg.mkPen(color=(100, 0, 0), width=3),
+                                      symbol='s', symbolBrush='r', name='gyr_z')
         down_layout.addWidget(self.pw2)
         legend = pg.LegendItem(offset=(60, 20))
         legend.setParentItem(self.pw2.graphicsItem())
@@ -98,11 +106,11 @@ class Sensor300dWidght(QWidget):
         self.pw3.setLabel('bottom', "polling")  # 设置X轴标签
         self.mag_x, self.mag_y, self.mag_z = [], [], []
         self.plot_mag_x = self.pw3.plot(self.x_polling, self.mag_x, pen=pg.mkPen(color=(0, 0, 100), width=3),
-                                        symbol='s', symbolBrush='r', name='mag_x')
-        self.plot_mag_y = self.pw3.plot(self.x_polling, self.mag_y, pen=pg.mkPen(color=(0, 0, 100), width=3),
+                                        symbol='s', symbolBrush='b', name='mag_x')
+        self.plot_mag_y = self.pw3.plot(self.x_polling, self.mag_y, pen=pg.mkPen(color=(0, 100, 0), width=3),
                                         symbol='s', symbolBrush='g', name='mag_y')
-        self.plot_mag_z = self.pw3.plot(self.x_polling, self.mag_z, pen=pg.mkPen(color=(0, 0, 100), width=3),
-                                        symbol='s', symbolBrush='b', name='mag_z')
+        self.plot_mag_z = self.pw3.plot(self.x_polling, self.mag_z, pen=pg.mkPen(color=(100, 0, 0), width=3),
+                                        symbol='s', symbolBrush='r', name='mag_z')
         down_layout.addWidget(self.pw3)
         legend = pg.LegendItem(offset=(60, 20))
         legend.setParentItem(self.pw3.graphicsItem())
@@ -116,34 +124,73 @@ class Sensor300dWidght(QWidget):
 
         self.main_layout.addLayout(down_layout)
 
+        self.last_update_tagid_time = time.time()
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.timeout_plot)
-        self.timer.start(100)
+        self.timer.start(200)
+
+    def tagid_selection_changed(self, index):
+        self.cur_tag_id = int(self.tag_id_combox.currentText())
 
     def timeout_plot(self):
         a = time.time()
-        gui_data = sorted(Sensor300d.gui_data, key=lambda x: x[0])
+        min_x_polling = 0
+        if self.x_polling:
+            min_x_polling = self.x_polling[0]
+            Sensor300d.gui_data = list(filter(lambda x: x[0] >= min_x_polling, Sensor300d.gui_data))
+        # 根据tagid过滤，并且根据滚码排序
+        gui_data = Sensor300d.gui_data if self.cur_tag_id is None else filter(lambda x: x[1] == self.cur_tag_id, Sensor300d.gui_data)
+        gui_data = sorted(gui_data, key=lambda x: x[0])
         if not gui_data:
             return
         gui_data_zip = list(zip(*gui_data))
 
-        # 温度压力电量显示
-        self.temp_lineedit.setText(str(gui_data_zip[5][-1]))
-        self.pres_lineedit.setText(str(gui_data_zip[4][-1]))
-        self.batt_lineedit.setText(str(gui_data_zip[3][-1]))
+        if self.cur_tag_id is not None:
+            # 温度压力电量显示
+            self.temp_lineedit.setText(str(gui_data_zip[5][-1]))
+            self.pres_lineedit.setText(str(gui_data_zip[4][-1]))
+            self.batt_lineedit.setText(str(gui_data_zip[3][-1]))
 
-        self.x_polling, _, _ ,_ , _, _, self.acc_x, self.acc_y, self.acc_z, self.gyr_x, self.gyr_y, self.gyr_z, self.mag_x, self.mag_y, self.mag_z = gui_data_zip
+            self.x_polling, _, _ ,_ , _, _, self.acc_x, self.acc_y, self.acc_z, self.gyr_x, self.gyr_y, self.gyr_z, self.mag_x, self.mag_y, self.mag_z = gui_data_zip
+            max_len = 100
+            self.x_polling = self.x_polling[-max_len:]
+            self.acc_x = self.acc_x[-max_len:]
+            self.acc_y = self.acc_y[-max_len:]
+            self.acc_z = self.acc_z[-max_len:]
+            self.gyr_x = self.gyr_x[-max_len:]
+            self.gyr_y = self.gyr_y[-max_len:]
+            self.gyr_z = self.gyr_z[-max_len:]
+            self.mag_x = self.mag_x[-max_len:]
+            self.mag_y = self.mag_y[-max_len:]
+            self.mag_z = self.mag_z[-max_len:]
+            self.plot_acc_x.setData(self.x_polling, self.acc_x)
+            self.plot_acc_y.setData(self.x_polling, self.acc_y)
+            self.plot_acc_z.setData(self.x_polling, self.acc_z)
+            self.plot_gyr_x.setData(self.x_polling, self.gyr_x)
+            self.plot_gyr_y.setData(self.x_polling, self.gyr_y)
+            self.plot_gyr_z.setData(self.x_polling, self.gyr_z)
+            self.plot_mag_x.setData(self.x_polling, self.mag_x)
+            self.plot_mag_y.setData(self.x_polling, self.mag_y)
+            self.plot_mag_z.setData(self.x_polling, self.mag_z)
 
-        self.plot_acc_x.setData(self.x_polling, self.acc_x)
-        self.plot_acc_y.setData(self.x_polling, self.acc_y)
-        self.plot_acc_z.setData(self.x_polling, self.acc_z)
-        self.plot_gyr_x.setData(self.x_polling, self.gyr_x)
-        self.plot_gyr_y.setData(self.x_polling, self.gyr_y)
-        self.plot_gyr_z.setData(self.x_polling, self.gyr_z)
-        self.plot_mag_x.setData(self.x_polling, self.mag_x)
-        self.plot_mag_y.setData(self.x_polling, self.mag_y)
-        self.plot_mag_z.setData(self.x_polling, self.mag_z)
-        # logger.info(f'{time.time() - a} ')
+        # 更新tagid列表
+        if self.cur_tag_id is None or time.time() - self.last_update_tagid_time > 3:
+            gui_data_zip = list(zip(*Sensor300d.gui_data))
+            self.tag_id_combox.blockSignals(True)
+            self.tag_id_combox.clear()
+            tag_id_set = set(gui_data_zip[1])
+            if self.cur_tag_id:
+                tag_id_set.add(self.cur_tag_id)
+            self.tag_id_combox.addItems(list(map(lambda x: str(x), sorted(tag_id_set))))
+            if self.cur_tag_id:
+                self.tag_id_combox.setCurrentText(str(self.cur_tag_id))
+            else:
+                self.tag_id_combox.setCurrentIndex(0)
+            self.cur_tag_id = int(self.tag_id_combox.currentText())
+            self.tag_id_combox.blockSignals(False)
+            self.last_update_tagid_time = time.time()
+
+        logger.info(f'{time.time() - a} {len(Sensor300d.gui_data)}, {min_x_polling} {len(self.x_polling)}')
         # if (len(self.x_polling) > self.xRange):
         #     self.pw1.setXRange(len(self.x_polling) - self.xRange, len(self.x_polling))  # 固定x坐标轴宽度
         #     self.pw2.setXRange(len(self.x_polling) - self.xRange, len(self.x_polling))  # 固定x坐标轴宽度
