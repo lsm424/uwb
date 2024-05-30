@@ -1,11 +1,19 @@
 import time
 from common.common import config
-from uwb.uwb import Uwb
 import sys
+from multiprocessing import Process, Queue
+
+def uwb_run(sensor_queue):
+    from uwb.uwb import Uwb
+    uwb = Uwb(sensor_queue)
+    uwb.join()
+
 
 if __name__ == '__main__':
-    uwb = Uwb()
     if config['gui']:
+        from gui.sensor300d import Sensor300dWidght
+        p = Process(target=uwb_run, args=(Sensor300dWidght.gui_queue, ))
+        p.start()
         from PySide6.QtWidgets import QApplication
         from gui.mainwinow import MainWindow
         app = QApplication(sys.argv)
@@ -13,5 +21,6 @@ if __name__ == '__main__':
         mainWindow.show()
         sys.exit(app.exec())
     else:
-        while True:
-            time.sleep(10)
+        p = Process(target=uwb_run)
+        p.start()
+        p.join()

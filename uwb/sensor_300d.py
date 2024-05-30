@@ -3,6 +3,7 @@ import queue
 import threading
 import time
 from common.common import get_header, logger, save
+from gui.sensor300d import Sensor300dWidght
 import struct
 import pandas
 
@@ -23,7 +24,8 @@ class Sensor300d:
 
     @staticmethod
     def save(pkgs):
-        Sensor300d.gui_data += pkgs
+        # list(map(lambda x: Sensor300dWidght.gui_queue.put(x), pkgs))
+        #Sensor300d.gui_data += pkgs
         # Sensor300d.gui_data = Sensor300d.gui_data[-500:]  # 内存中最多保留1000条
         return Sensor300d.save_queue.put(pkgs)
 

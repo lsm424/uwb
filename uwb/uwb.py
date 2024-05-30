@@ -14,31 +14,16 @@ import pydblite
 from uwb.sensor_300d import Sensor300d
 
 
-# # 按照滚码汇聚
-# class RollingConverge:
-#     def __init__(self):
-#         self.cache = {}
-#
-#     def add(self, tlv: Tlv) -> list[Tlv]:
-#         pkg_list, timestampe = self.cache.get(tlv.rolling, ([], time()))
-#         if time() - timestampe > 0.2:
-#             self.cache[tlv.rolling] = ([tlv], time())
-#             return pkg_list
-#         pkg_list.append(tlv)
-#         self.cache[tlv.rolling] = (pkg_list, time())
-#         return []
-
-
 
 # Uwb整体逻辑
 class Uwb:
-    def __init__(self):
+    def __init__(self, sensor_queue: multiprocessing.Queue):
+        self.sensor_queue = sensor_queue
         parase_queue = queue.Queue()
         out_csv_queue = queue.Queue()
         # for i in range(1):
         #     p = threading.Thread(target=self.parase_proc, args=(parase_queue, out_csv_queue, i,), daemon=True)
         #     p.start()
-        # self.rolling_converge = RollingConverge()
         self.access = create_access()
         self.lock = threading.Lock()
         self.cache = pydblite.Base(':memory:')
@@ -52,6 +37,9 @@ class Uwb:
         self.threads.append(threading.Thread(target=self.access_read_thread, args=(out_csv_queue, ), daemon=True))
         self.threads.append(threading.Thread(target=self.statistic, args=(parase_queue, out_csv_queue), daemon=True))
         list(map(lambda x: x.start(), self.threads))
+
+    def join(self):
+        list(map(lambda x: x.join(), self.threads))
 
     def statistic(self, inqueue, out_csv_queue):
         while True:
@@ -127,6 +115,9 @@ class Uwb:
             for proto_type, pkgs in groupby(pkgs, key=lambda x: x.proto_type):
                 csv_data = list(chain(*chain(map(lambda x: x.result, pkgs))))
                 Tlv.proto_handler[proto_type].save(csv_data)
+                if proto_type == Sensor300d.PROTO_ID:
+                    list(map(lambda x: self.sensor_queue.put(x), csv_data))
+                    # logger.info(f'推送传感器数据{len(csv_data)}')
                 pickle_data += list(map(lambda x: x.pickle_data, pkgs))
 
             # pickle写文件
