@@ -4,7 +4,7 @@ import loguru
 import yaml
 
 
-loguru.logger.add("./ubw.log", colorize=True, level="INFO", encoding="utf-8", retention="5 days", rotation="1 day", enqueue=True)
+loguru.logger.add("./ubw.log", level="INFO", encoding="utf-8", retention="10 days", rotation="1 day", enqueue=True)
 logger = loguru.logger
 
 

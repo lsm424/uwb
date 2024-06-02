@@ -4,7 +4,6 @@ import queue
 import threading
 import multiprocessing
 from itertools import groupby, chain
-from gui.tof2011 import Tof2011Widght
 from common.common import logger, config, pickle_file
 from access.access import create_access
 from time import time, sleep
@@ -12,13 +11,14 @@ from uwb.TLV import Tlv
 import pydblite
 
 from uwb.sensor_300d import Sensor300d
-
+from uwb.tof_2011 import Tof2011
 
 
 # Uwb整体逻辑
 class Uwb:
-    def __init__(self, sensor_queue: multiprocessing.Queue):
+    def __init__(self, sensor_queue: multiprocessing.Queue, tof_queue: multiprocessing.Queue):
         self.sensor_queue = sensor_queue
+        self.tof_queue = tof_queue
         parase_queue = queue.Queue()
         out_csv_queue = queue.Queue()
         # for i in range(1):
@@ -45,6 +45,7 @@ class Uwb:
         while True:
             logger.info(f'access_queue_size: {self.access.qsize()}, parase queue size: {inqueue.qsize()}, out_csv_queue: {out_csv_queue.qsize()} ')
             Sensor300d.delete_old_history_data(60)
+            Tof2011.delete_old_history_data(60)
             sleep(5)
 
     # 主流程
@@ -117,7 +118,8 @@ class Uwb:
                 Tlv.proto_handler[proto_type].save(csv_data)
                 if proto_type == Sensor300d.PROTO_ID:
                     list(map(lambda x: self.sensor_queue.put(x), csv_data))
-                    # logger.info(f'推送传感器数据{len(csv_data)}')
+                elif proto_type == Tof2011.PROTO_ID:
+                    list(map(lambda x: self.tof_queue.put(x), csv_data))
                 pickle_data += list(map(lambda x: x.pickle_data, pkgs))
 
             # pickle写文件

@@ -1,4 +1,6 @@
-from PySide6.QtWidgets import QComboBox, QLineEdit
+import sys
+
+from PySide6.QtWidgets import QComboBox, QLineEdit, QApplication
 from PySide6.QtCore import Qt, Signal
 
 
@@ -21,9 +23,10 @@ class CheckableComboBox(QComboBox):
         item.setCheckState(Qt.CheckState.Unchecked)
         item.setToolTip(text)
 
+
     def addCheckableItems(self, texts):
         for text in texts:
-            self.addCheckableItem(text)
+            self.addCheckableItem(str(text))
 
     def ifChecked(self, index):
         item = self.model().item(index, 0)
@@ -63,3 +66,22 @@ class CheckableComboBox(QComboBox):
             self.model().item(i).setCheckState(Qt.CheckState.Checked)
         self.lineEdit().setText(self.checkedItemsStr())
 
+    def select_items(self, items):
+        items = list(map(lambda x: str(x), items))
+        for i in range(self.model().rowCount()):
+            text = self.model().item(i).text()
+            if text not in items:
+                continue
+            self.model().item(i).setCheckState(Qt.CheckState.Checked)
+        self.lineEdit().setText(self.checkedItemsStr())
+
+
+if __name__ == '__main__':
+    from PySide6.QtWidgets import QApplication
+
+    app = QApplication(sys.argv)
+    mainWindow = CheckableComboBox()
+    mainWindow.addCheckableItems(['1', '2', '3'])
+    mainWindow.select_items(['2', '1'])
+    mainWindow.show()
+    sys.exit(app.exec())
