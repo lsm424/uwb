@@ -1,7 +1,9 @@
 import time
-from common.common import config
+from common.common import config, logger
 import sys
 from multiprocessing import Process, Queue
+from gui.sensor300d import Sensor300dWidght
+from gui.tof2011 import Tof2011Widght
 
 def uwb_run(sensor_queue, tof_queue):
     from uwb.uwb import Uwb
@@ -11,8 +13,6 @@ def uwb_run(sensor_queue, tof_queue):
 
 if __name__ == '__main__':
     if config['gui']:
-        from gui.sensor300d import Sensor300dWidght
-        from gui.tof2011 import Tof2011Widght
         p = Process(target=uwb_run, args=(Sensor300dWidght.gui_queue, Tof2011Widght.gui_queue))
         p.start()
         from PySide6.QtWidgets import QApplication
@@ -22,6 +22,4 @@ if __name__ == '__main__':
         mainWindow.show()
         sys.exit(app.exec())
     else:
-        p = Process(target=uwb_run)
-        p.start()
-        p.join()
+        uwb_run(Sensor300dWidght.gui_queue, Tof2011Widght.gui_queue)

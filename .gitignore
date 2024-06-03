@@ -1,8 +1,12 @@
 build
 dist
+*.dist
 *.log
+*.zip
 .idea
 __pycache__
 out_file
 tmp.py
+tmp.spec
 Pipfile
+*.exe

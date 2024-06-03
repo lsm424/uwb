@@ -116,11 +116,12 @@ class Uwb:
             for proto_type, pkgs in groupby(pkgs, key=lambda x: x.proto_type):
                 csv_data = list(chain(*chain(map(lambda x: x.result, pkgs))))
                 Tlv.proto_handler[proto_type].save(csv_data)
-                if proto_type == Sensor300d.PROTO_ID:
-                    list(map(lambda x: self.sensor_queue.put(x), csv_data))
-                elif proto_type == Tof2011.PROTO_ID:
-                    list(map(lambda x: self.tof_queue.put(x), csv_data))
                 pickle_data += list(map(lambda x: x.pickle_data, pkgs))
+                if config['gui']:
+                    if proto_type == Sensor300d.PROTO_ID:
+                        list(map(lambda x: self.sensor_queue.put(x), csv_data))
+                    elif proto_type == Tof2011.PROTO_ID:
+                        list(map(lambda x: self.tof_queue.put(x), csv_data))
 
             # pickle写文件
             pickle_file.write(pickle.dumps(pickle_data))
