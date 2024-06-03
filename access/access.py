@@ -32,6 +32,7 @@ class Access:
 
     def __init__(self):
         self._cache = {}
+        self.cnt = 0
         self._raw_queue = queue.Queue()
         self._out_queue = queue.Queue()
         self._t_access = threading.Thread(target=self._run)
@@ -55,6 +56,7 @@ class Access:
         while True:
             data, addr = self._recive_data()
             self._raw_queue.put((data, addr))
+            self.cnt += 1
 
     # 抽取tlv线程
     def _split_tlv(self):
@@ -73,6 +75,8 @@ class Access:
     def qsize(self):
         return self._out_queue.qsize()
 
+    def raw_queue_size(self):
+        return self._raw_queue.qsize()
 
 def create_access():
     if config['access_type'] == 'udp':

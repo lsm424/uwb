@@ -6,6 +6,7 @@ dist
 .idea
 __pycache__
 out_file
+test.py
 tmp.py
 tmp.spec
 Pipfile

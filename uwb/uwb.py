@@ -1,6 +1,7 @@
 #encoding=utf-8
 import pickle
 import queue
+import sys
 import threading
 import multiprocessing
 from itertools import groupby, chain
@@ -12,6 +13,7 @@ import pydblite
 
 from uwb.sensor_300d import Sensor300d
 from uwb.tof_2011 import Tof2011
+from memory_profiler import profile
 
 
 # Uwb整体逻辑
@@ -19,7 +21,6 @@ class Uwb:
     def __init__(self, sensor_queue: multiprocessing.Queue, tof_queue: multiprocessing.Queue):
         self.sensor_queue = sensor_queue
         self.tof_queue = tof_queue
-        parase_queue = queue.Queue()
         out_csv_queue = queue.Queue()
         # for i in range(1):
         #     p = threading.Thread(target=self.parase_proc, args=(parase_queue, out_csv_queue, i,), daemon=True)
@@ -35,18 +36,18 @@ class Uwb:
         self.threads = [threading.Thread(target=self.save_file, args=(out_csv_queue,), daemon=True)]
         self.threads.append(threading.Thread(target=self.push_aggregate, args=(out_csv_queue, ), daemon=True))
         self.threads.append(threading.Thread(target=self.access_read_thread, args=(out_csv_queue, ), daemon=True))
-        self.threads.append(threading.Thread(target=self.statistic, args=(parase_queue, out_csv_queue), daemon=True))
+        self.threads.append(threading.Thread(target=self.statistic, args=(out_csv_queue, ), daemon=True))
         list(map(lambda x: x.start(), self.threads))
 
     def join(self):
         list(map(lambda x: x.join(), self.threads))
 
-    def statistic(self, inqueue, out_csv_queue):
+    def statistic(self, out_csv_queue):
         while True:
-            logger.info(f'access_queue_size: {self.access.qsize()}, parase queue size: {inqueue.qsize()}, out_csv_queue: {out_csv_queue.qsize()} ')
+            logger.info(f'access_queue_size: {self.access.qsize()}, access_raw_queue_size: {self.access.raw_queue_size()}, {self.access.cnt} out_csv_queue: {out_csv_queue.qsize()} dbsize:{sys.getsizeof(self.cache)},{len(self.cache)}')
             Sensor300d.delete_old_history_data(60)
             Tof2011.delete_old_history_data(60)
-            sleep(5)
+            sleep(1)
 
     # 主流程
     def access_read_thread(self, out_csv_queue):
@@ -101,6 +102,7 @@ class Uwb:
             # Parallel(n_jobs=-1, backend='multiprocessing')(delayed(tlv.parase)() for tlv in tlv_pkgs)
             out_csv_queue.put(tlv_pkgs)
 
+    @profile(precision=5)
     def save_file(self, out_csv_queue):
         logger.info(f'启动保存文件子线程')
         while True:

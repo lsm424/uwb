@@ -27,7 +27,7 @@ class Tof2011Widght(QWidget):
         self.cur_tag_id = None
         self.cur_anchor_id = set()
         self.x_range = 100
-        self.x_polling = []
+        self.x_rolling = []
         self.y_distance = []
         self.y_rxl = []
         self.y_fpl = []
@@ -52,8 +52,8 @@ class Tof2011Widght(QWidget):
         self.pw1.setMouseEnabled(x=False, y=False)  # 失能x,y轴控制
         self.pw1.showGrid(x=True, y=True)  # 显示网格
         self.pw1.setLabel('left', "distance")  # 设置Y轴标签
-        self.pw1.setLabel('bottom', "polling")  # 设置X轴标签
-        self.plot_distance = self.pw1.plot(self.x_polling, self.y_distance, pen=pg.mkPen(color=(0, 100, 0), width=3),
+        self.pw1.setLabel('bottom', "rolling")  # 设置X轴标签
+        self.plot_distance = self.pw1.plot(self.x_rolling, self.y_distance, pen=pg.mkPen(color=(0, 100, 0), width=3),
                                       symbol='s', symbolBrush='g', name='distance')
         self.main_layout.addWidget(self.pw1, 2)
 
@@ -61,10 +61,10 @@ class Tof2011Widght(QWidget):
         self.pw2.setMouseEnabled(x=False, y=False)  # 失能x,y轴控制
         self.pw2.showGrid(x=True, y=True)  # 显示网格
         self.pw2.setLabel('left', "rxl/fpl")  # 设置Y轴标签
-        self.pw2.setLabel('bottom', "polling")  # 设置X轴标签
-        self.plot_fpl = self.pw2.plot(self.x_polling, self.y_fpl, pen=pg.mkPen(color=(100, 0, 0), width=3),
+        self.pw2.setLabel('bottom', "rolling")  # 设置X轴标签
+        self.plot_fpl = self.pw2.plot(self.x_rolling, self.y_fpl, pen=pg.mkPen(color=(100, 0, 0), width=3),
                                       symbol='s', symbolBrush='r', name='fpl')
-        self.plot_rxl = self.pw2.plot(self.x_polling, self.y_rxl, pen=pg.mkPen(color=(0, 0, 100), width=3),
+        self.plot_rxl = self.pw2.plot(self.x_rolling, self.y_rxl, pen=pg.mkPen(color=(0, 0, 100), width=3),
                                         symbol='s', symbolBrush='b', name='rxl')
         # 创建一个图例
         legend = pg.LegendItem(offset=(60, 20))
@@ -89,12 +89,13 @@ class Tof2011Widght(QWidget):
         try:
             # 确定当前tag_id
             cur_tag_id = self.tag_id_combox.currentText()
-            if not cur_tag_id:
+            if not cur_tag_id or int(cur_tag_id) == self.cur_tag_id:
                 return
             cur_tag_id = int(cur_tag_id)
             # 找到关联的anchorid
             anchorid_list = self.tagid2anchorid.get(cur_tag_id, [])
             if len(anchorid_list) == 0:
+                logger.warning(f'tof tagid切换{cur_tag_id}时，筛选不到anchorid，准备重新选择tagid')
                 self.tag_id_combox.removeItem(index)
                 self.tag_id_combox.setCurrentIndex(0)
                 return
@@ -112,12 +113,12 @@ class Tof2011Widght(QWidget):
             logger.info(f'tof tagid选择变动：{self.cur_tag_id}， 当前：{self.cur_anchor_id}， 过滤数据包：{len(show_pkgs)}')
             if show_pkgs:
                 gui_data_zip = list(zip(*show_pkgs))
-                self.x_polling, _, _, self.y_distance, self.y_rxl, self.y_fpl = gui_data_zip
-                self.x_polling = self.x_polling[-self.x_range:]
+                self.x_rolling, _, _, self.y_distance, self.y_rxl, self.y_fpl = gui_data_zip
+                self.x_rolling = self.x_rolling[-self.x_range:]
                 self.y_distance = self.y_distance[-self.x_range:]
                 self.y_rxl = self.y_rxl[-self.x_range:]
                 self.y_fpl = self.y_fpl[-self.x_range:]
-                self.gui_data = list(filter(lambda x: x[0] > self.x_polling[0], self.gui_data))
+                self.gui_data = list(filter(lambda x: x[0] > self.x_rolling[0], self.gui_data))
             else:
                 self.tag_id_combox.removeItem(index)
                 self.tag_id_combox.setCurrentIndex(0)
@@ -133,12 +134,12 @@ class Tof2011Widght(QWidget):
         logger.info(f'tof anchorid选择变动：{"" if self.anchor_id_combox.ifChecked(row_idx) else "取消"}选择{item}， 当前anchorid：{self.cur_anchor_id}， 过滤数据包：{len(show_pkgs)}')
         if show_pkgs:
             gui_data_zip = list(zip(*show_pkgs))
-            self.x_polling, _, _, self.y_distance, self.y_rxl, self.y_fpl = gui_data_zip
-            self.x_polling = self.x_polling[-self.x_range:]
+            self.x_rolling, _, _, self.y_distance, self.y_rxl, self.y_fpl = gui_data_zip
+            self.x_rolling = self.x_rolling[-self.x_range:]
             self.y_distance = self.y_distance[-self.x_range:]
             self.y_rxl = self.y_rxl[-self.x_range:]
             self.y_fpl = self.y_fpl[-self.x_range:]
-            self.gui_data = list(filter(lambda x: x[0] > self.x_polling[0], self.gui_data))
+            self.gui_data = list(filter(lambda x: x[0] > self.x_rolling[0], self.gui_data))
         elif self.anchor_id_combox.ifChecked(row_idx):
             self.anchor_id_combox.removeItem(row_idx)
             self.cur_anchor_id.discard(int(item))
@@ -151,7 +152,7 @@ class Tof2011Widght(QWidget):
             while not gui_queue.empty():
                 pkgs.append(gui_queue.get(block=True))
             # 剔除滚码小于当前x轴最小值的数据
-            min_rolling = self.x_polling[0] if self.x_polling else 0
+            min_rolling = self.x_rolling[0] if self.x_rolling else 0
             pkgs = list(filter(lambda x: x[0] > min_rolling, pkgs))
             if not pkgs:
                 continue
@@ -194,30 +195,30 @@ class Tof2011Widght(QWidget):
                 self.anchor_id_combox.blockSignals(False)
 
                 self.last_update_tagid_time = time.time()
-                logger.info(f'tof显示数据队列积压：{gui_queue.empty()}, 积压全量gui数据：{len(self.gui_data)}，x轴最小值{self.x_polling[0] if self.x_polling else None}，x轴长度：{len(self.x_polling)}，tagid数量：{len(tag_id_set)}')
+                logger.info(f'tof显示数据队列积压：{gui_queue.empty()}, 积压全量gui数据：{len(self.gui_data)}，x轴最小值{self.x_rolling[0] if self.x_rolling else None}，x轴长度：{len(self.x_rolling)}，tagid数量：{len(tag_id_set)}')
 
             # 筛选当前tagid的数据用于显示
-            show_pkgs = list(filter(lambda x: x[1] in self.cur_anchor_id and x[2] == self.cur_tag_id and x[0] not in self.x_polling, pkgs))
+            show_pkgs = list(filter(lambda x: x[1] in self.cur_anchor_id and x[2] == self.cur_tag_id and x[0] not in self.x_rolling, pkgs))
             if show_pkgs:
                 gui_data_zip = list(zip(*show_pkgs))
-                x_polling_show, _, _, distance_show, rxl, fpl = gui_data_zip
+                x_rolling_show, _, _, distance_show, rxl, fpl = gui_data_zip
 
-                x_polling = list(self.x_polling) + list(x_polling_show)
-                x_polling_enumerated = sorted(enumerate(x_polling), key=lambda x: x[1])
-                x_polling_idx, x_polling = list(zip(*x_polling_enumerated))
-                x_polling_idx, x_polling = list(x_polling_idx), list(x_polling[-self.x_range:])
-                distance_show = list(np.array(list(self.y_distance) + list(distance_show))[x_polling_idx][-self.x_range:])
-                rxl = list(np.array(list(self.y_rxl) + list(rxl))[x_polling_idx][-self.x_range:])
-                fpl = list(np.array(list(self.y_fpl) + list(fpl))[x_polling_idx][-self.x_range:])
-                self.x_polling, self.y_distance, self.y_rxl, self.y_fpl = x_polling, distance_show, rxl, fpl
-                if self.gui_data[0][0] < self.x_polling[0]:
-                    self.gui_data = list(filter(lambda x: x[0] > self.x_polling[0], self.gui_data))
+                x_rolling = list(self.x_rolling) + list(x_rolling_show)
+                x_rolling_enumerated = sorted(enumerate(x_rolling), key=lambda x: x[1])
+                x_rolling_idx, x_rolling = list(zip(*x_rolling_enumerated))
+                x_rolling_idx, x_rolling = list(x_rolling_idx), list(x_rolling[-self.x_range:])
+                distance_show = list(np.array(list(self.y_distance) + list(distance_show))[x_rolling_idx][-self.x_range:])
+                rxl = list(np.array(list(self.y_rxl) + list(rxl))[x_rolling_idx][-self.x_range:])
+                fpl = list(np.array(list(self.y_fpl) + list(fpl))[x_rolling_idx][-self.x_range:])
+                self.x_rolling, self.y_distance, self.y_rxl, self.y_fpl = x_rolling, distance_show, rxl, fpl
+                if self.gui_data[0][0] < self.x_rolling[0]:
+                    self.gui_data = list(filter(lambda x: x[0] > self.x_rolling[0], self.gui_data))
             # logger.info(f'耗时：{c - b} {b - a} {time.time() - c} {time.time() - a}')
 
     def timeout_plot(self):
         try:
-            self.plot_distance.setData(self.x_polling, self.y_distance)  # 重新绘制
-            self.plot_rxl.setData(self.x_polling, self.y_rxl)  # 重新绘制
-            self.plot_fpl.setData(self.x_polling, self.y_fpl)  # 重新绘制
+            self.plot_distance.setData(self.x_rolling, self.y_distance)  # 重新绘制
+            self.plot_rxl.setData(self.x_rolling, self.y_rxl)  # 重新绘制
+            self.plot_fpl.setData(self.x_rolling, self.y_fpl)  # 重新绘制
         except BaseException as e:
             logger.error(f'error: {e}')
