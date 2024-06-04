@@ -1,4 +1,5 @@
 import csv
+import multiprocessing
 import queue
 import threading
 import time
@@ -17,7 +18,7 @@ class Sensor300d:
     csv_file = open(f'{NAME}.csv', 'a', newline='', encoding='utf-8')
     gui_data = []
     writer = csv.writer(csv_file)
-    save_queue = queue.Queue()
+    save_queue = multiprocessing.Queue()
     t = threading.Thread(target=save, args=(writer, save_queue, csv_file), daemon=True)
     t.start()
 

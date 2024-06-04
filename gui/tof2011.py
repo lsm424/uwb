@@ -149,7 +149,7 @@ class Tof2011Widght(QWidget):
         gui_queue = Tof2011Widght.gui_queue
         while True:
             pkgs = gui_queue.get()
-            while not gui_queue.empty():
+            while not gui_queue.empty() and len(pkgs) < 500:
                 pkgs += gui_queue.get(block=True)
             # 剔除滚码小于当前x轴最小值的数据
             min_rolling = self.x_rolling[0] if self.x_rolling else 0

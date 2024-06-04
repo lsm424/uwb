@@ -36,6 +36,8 @@ pickle_file = open('out_file/pickle_file.dat', 'ab')
 
 def save(writer, queue, csv_file):
     while True:
-        pkg = queue.get()
-        writer.writerows(pkg)
-        csv_file.flush()
+        pkgs = queue.get()
+        while not queue.empty() and len(pkgs) < 2000:
+            pkgs += queue.get(block=False)
+        writer.writerows(pkgs)
+        # csv_file.flush()

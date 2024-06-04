@@ -1,4 +1,5 @@
 import logging
+import multiprocessing
 import queue
 import struct
 import threading
@@ -19,7 +20,7 @@ class Tof2011:
     csv_file = open(f'{NAME}.csv', 'a', newline='', encoding='utf-8')
     writer = csv.writer(csv_file)
     gui_data = []
-    save_queue = queue.Queue()
+    save_queue = multiprocessing.Queue()
     t = threading.Thread(target=save, args=(writer, save_queue, csv_file), daemon=True)
     t.start()
 
