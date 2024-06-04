@@ -135,7 +135,7 @@ class Sensor300dWidght(QWidget):
         self.last_update_tagid_time = time.time()
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.timeout_plot)
-        self.timer.start(200)
+        self.timer.start(100)
 
 
     def tagid_selection_changed(self, index):
@@ -174,10 +174,10 @@ class Sensor300dWidght(QWidget):
             logger.info(f'处理传感器gui数据线程启动')
             gui_queue = Sensor300dWidght.gui_queue
             while True:
-                pkgs = [gui_queue.get()]
+                pkgs = gui_queue.get()
                 # logger.info(f'处理传感器gui数据线程启动-收到数据')
                 while not gui_queue.empty() and len(pkgs) < 500:
-                    pkgs.append(gui_queue.get(block=False))
+                    pkgs += gui_queue.get(block=False)
 
                 # 剔除滚码小于当前x轴最小值的数据
                 min_rolling = self.x_rolling[0] if self.x_rolling else 0

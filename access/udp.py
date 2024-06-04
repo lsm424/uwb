@@ -11,7 +11,9 @@ class UdpServer(Access):
         return 'udp'
 
     def _recive_data(self):
-        return self.sock.recvfrom(4096)
+        data, addr = self.sock.recvfrom(4096)
+        addr = f'{addr[0]}:{addr[1]}'
+        return data, addr
 
     def reset_port(self, port):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)

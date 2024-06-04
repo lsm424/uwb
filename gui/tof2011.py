@@ -9,7 +9,7 @@ import numpy as np
 
 from common.common import logger
 from gui.multicombox import CheckableComboBox
-from uwb.tof_2011 import Tof2011
+
 
 pg.setConfigOptions(leftButtonPan=True, antialias=True)  # 允许鼠标左键拖动画面，并启用抗锯齿
 pg.setConfigOption('background', 'w')  # 初始的背景(白)
@@ -26,7 +26,7 @@ class Tof2011Widght(QWidget):
         self.tagid2anchorid = {}
         self.cur_tag_id = None
         self.cur_anchor_id = set()
-        self.x_range = 100
+        self.x_range = 200
         self.x_rolling = []
         self.y_distance = []
         self.y_rxl = []
@@ -83,7 +83,7 @@ class Tof2011Widght(QWidget):
 
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.timeout_plot)
-        self.timer.start(200)
+        self.timer.start(100)
 
     def tagid_selection_changed(self, index):
         try:
@@ -148,9 +148,9 @@ class Tof2011Widght(QWidget):
         logger.info(f'处理tof gui数据线程启动')
         gui_queue = Tof2011Widght.gui_queue
         while True:
-            pkgs = [gui_queue.get()]
+            pkgs = gui_queue.get()
             while not gui_queue.empty():
-                pkgs.append(gui_queue.get(block=True))
+                pkgs += gui_queue.get(block=True)
             # 剔除滚码小于当前x轴最小值的数据
             min_rolling = self.x_rolling[0] if self.x_rolling else 0
             pkgs = list(filter(lambda x: x[0] > min_rolling, pkgs))

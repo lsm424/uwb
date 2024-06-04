@@ -9,13 +9,14 @@ import signal
 
 def uwb_run(sensor_queue, tof_queue):
     from uwb.uwb import Uwb
+    global uwb
     uwb = Uwb(sensor_queue, tof_queue)
     uwb.join()
 
 def on_app_exit():
-    global p
-    logger.info(f"所有窗口已关闭，应用程序准备退出，杀死{p.pid}")
-    os.kill(p.pid,  signal.SIGTERM)
+    logger.info(f"所有窗口已关闭，应用程序准备退出")
+    global uwb
+    uwb.exit()
 
 if __name__ == '__main__':
     if config['gui']:

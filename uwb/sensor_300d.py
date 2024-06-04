@@ -3,9 +3,8 @@ import queue
 import threading
 import time
 from common.common import get_header, logger, save
-from gui.sensor300d import Sensor300dWidght
 import struct
-import pandas
+
 
 
 class Sensor300d:

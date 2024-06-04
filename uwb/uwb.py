@@ -1,29 +1,50 @@
 #encoding=utf-8
+import os
 import pickle
 import queue
+import signal
 import sys
 import threading
 import multiprocessing
 from itertools import groupby, chain
-from common.common import logger, config, pickle_file
-from access.access import create_access
+from common.common import logger, config
+from access.access import create_access, Package
 from time import time, sleep
+
+# from joblib import Parallel, delayed
 from uwb.TLV import Tlv
 import pydblite
 
 from uwb.sensor_300d import Sensor300d
 from uwb.tof_2011 import Tof2011
-from memory_profiler import profile
+
+def parase_tlv(parase_queue, save_queue, i):
+    logger.info(f'启动解析tlv进程, {i}')
+    while True:
+        tlv_list = parase_queue.get()
+        tlv_list = list(filter(lambda x: x.result, map(lambda x: x.parase(), tlv_list)))
+        list(map(lambda x: save_queue.put(x), tlv_list))
 
 
 # Uwb整体逻辑
 class Uwb:
     def __init__(self, sensor_queue: multiprocessing.Queue, tof_queue: multiprocessing.Queue):
+
+        self._save_queue = multiprocessing.Queue()
+        parase_queue = multiprocessing.Queue()
+        self.p = []
+        # from concurrent.futures import ALL_COMPLETED, ProcessPoolExecutor, FIRST_COMPLETED, wait
+        # self.executor = ProcessPoolExecutor(max_workers=2)
+        # self.p = list(map(lambda x: self.executor.submit(self.parase_tlv_proc, parase_queue, self._save_queue, x), range(2)))
+        for i in range(4):
+            p = multiprocessing.Process(target=Uwb.parase_tlv_proc, args=(parase_queue, self._save_queue, sensor_queue, tof_queue, i))
+            p.start()
+            self.p.append(p)
+
         self.sensor_queue = sensor_queue
         self.tof_queue = tof_queue
-        out_csv_queue = queue.Queue()
         # for i in range(1):
-        #     p = threading.Thread(target=self.parase_proc, args=(parase_queue, out_csv_queue, i,), daemon=True)
+        #     p = threading.Thread(target=self.parase_proc, args=(parase_queue, parase_queue, i,), daemon=True)
         #     p.start()
         self.access = create_access()
         self.lock = threading.Lock()
@@ -32,99 +53,90 @@ class Uwb:
         self.cache.create_index('rolling', 'timestamp')
 
         # executor = ProcessPoolExecutor(max_workers=1)
-        # self.r = list(map(lambda x: executor.submit(self.parase_proc, self.queue, self.out_csv_queue, x), range(2)))
-        self.threads = [threading.Thread(target=self.save_file, args=(out_csv_queue,), daemon=True)]
-        self.threads.append(threading.Thread(target=self.push_aggregate, args=(out_csv_queue, ), daemon=True))
-        self.threads.append(threading.Thread(target=self.access_read_thread, args=(out_csv_queue, ), daemon=True))
-        self.threads.append(threading.Thread(target=self.statistic, args=(out_csv_queue, ), daemon=True))
+        # self.r = list(map(lambda x: executor.submit(self.parase_proc, self.queue, self.parase_queue, x), range(2)))
+        # self.threads = [threading.Thread(target=self.save_file, args=(parase_queue,), daemon=True)]
+
+        self.threads = []
+        self.threads.append(threading.Thread(target=self.push_aggregate, args=(parase_queue, ), daemon=True))
+        self.threads.append(threading.Thread(target=self.access_read_thread, args=(parase_queue, ), daemon=True))
+        self.threads.append(threading.Thread(target=self.statistic, args=(parase_queue, ), daemon=True))
+        self.threads.append(threading.Thread(target=self.save_tlv_thread, daemon=True))
+        # self.threads.append(threading.Thread(target=self.save_tlv_thread, daemon=True))
         list(map(lambda x: x.start(), self.threads))
 
     def join(self):
         list(map(lambda x: x.join(), self.threads))
 
-    def statistic(self, out_csv_queue):
+    def exit(self):
+        list(map(lambda x: os.kill(x.pid,  signal.SIGTERM), self.p))
+        os.kill(os.getpid(), signal.SIGTERM)
+
+    def statistic(self, parase_queue):
+        from common.common import pickle_file
         while True:
-            logger.info(f'access_queue_size: {self.access.qsize()}, access_raw_queue_size: {self.access.raw_queue_size()}, {self.access.cnt} out_csv_queue: {out_csv_queue.qsize()} dbsize:{sys.getsizeof(self.cache)},{len(self.cache)}')
+            logger.info(f'解析tlv速度：{self.access.cnt}/s, 待汇聚队列积压: {self.access.qsize()}, 解析测量值队列积压: {parase_queue.qsize()}, 待序列化文件队列积压: {self._save_queue.qsize()}, dbsize:{sys.getsizeof(self.cache)},{len(self.cache)}')
+            self.access.cnt = 0
             Sensor300d.delete_old_history_data(60)
             Tof2011.delete_old_history_data(60)
+            pickle_file.flush()
             sleep(1)
 
+
     # 主流程
-    def access_read_thread(self, out_csv_queue):
+    def access_read_thread(self, parase_queue):
         logger.info(f'启动线程')
         while True:
             # 接收一帧数据
-            data, addr, timestampe = self.access.get_data()
-            tlv = Tlv(data, addr, timestampe)
-            # tlv解析头部字段
-            if not tlv.pre_parase():
-                continue
-            # tlv.parase()
-            # logger.info(f'{tlv.result[0][0]} {tlv.result[0][1]} {tlv.result[0][2]}')
+            tlv = self.access.get_data()
+            # self._save_queue.put(tlv)
             # 汇聚
             with self.lock:
                 ret = self.cache(rolling=tlv.rolling)
                 if not ret or (time() - ret[0]['timestamp'] > 0.2):
                     if ret:
-                        out_csv_queue.put(ret[0]['tlv_list'])
+                        parase_queue.put(ret[0]['tlv_list'])
                         self.cache.delete(ret[0])
                     self.cache.insert(rolling=tlv.rolling, timestamp=time(), tlv_list=[tlv])
                 else:
                     ret[0]['tlv_list'].append(tlv)
-            # 汇聚
-            # tlv_pkgs = self.rolling_converge.add(tlv)
-            # if not tlv_pkgs:
-            #     # sleep(0.2)
-            #     continue
-            # self.aggregate(tlv)
-            # list(map(lambda x: queue.put(x), tlv_pkgs))
-            # logger.info(f'handle one {tlv.rolling} {id(tlv)} {queue.qsize()}')
 
     # 周期推送汇聚结果
-    def push_aggregate(self, out_csv_queue):
+    def push_aggregate(self, parase_queue):
         logger.info(f'启动汇聚结果推送线程')
         while True:
             sleep(0.2)
             with self.lock:
                 rows = self.cache('timestamp') < (time() - 0.2)
-                list(map(lambda x: (out_csv_queue.put(x['tlv_list']), self.cache.delete(x)), rows))
+                list(map(lambda x: (parase_queue.put(x['tlv_list']), self.cache.delete(x)), rows))
 
-    def parase_proc(self, parase_queue, out_csv_queue, i):
-        logger.info(f'启动tlv解析子进程{i}')
-
+    @staticmethod
+    def parase_tlv_proc(parase_queue, save_queue, sensor_queue, tof_queue, i):
+        logger.info(f'启动解析tlv进程, {i}')
         while True:
-            tlv_pkgs = parase_queue.get()
-            list(map(lambda x: x.parase(), tlv_pkgs))
-            tlv_pkgs = list(filter(lambda x: x.result, tlv_pkgs))
-            if not tlv_pkgs:
-                continue
-            # 并行解析测量值
-            # Parallel(n_jobs=-1, backend='multiprocessing')(delayed(tlv.parase)() for tlv in tlv_pkgs)
-            out_csv_queue.put(tlv_pkgs)
+            tlv_list = parase_queue.get()
+            tlv_list = filter(lambda x: x.result, map(lambda x: x.parase(), tlv_list))
+            # list(map(lambda x: save_queue.put(x), tlv_list))
+            for tlv in tlv_list:
+                save_queue.put(tlv)
+                if config['gui']:
+                    if tlv.proto_type == Sensor300d.PROTO_ID:
+                        sensor_queue.put(tlv.result)
+                    elif tlv.proto_type == Tof2011.PROTO_ID:
+                        tof_queue.put(tlv.result)
 
-    @profile(precision=5)
-    def save_file(self, out_csv_queue):
-        logger.info(f'启动保存文件子线程')
+
+    def save_tlv_thread(self):
+        from common.common import pickle_file
+        logger.info(f'启动数据保存线程')
         while True:
             # 汇总一批汇聚后的包进行解析
-            pkgs = out_csv_queue.get()
-            while not out_csv_queue.empty() and len(pkgs) < 500:
-                pkgs += out_csv_queue.get(block=False)
-            pkgs = filter(lambda x: x.result, map(lambda x: x.parase(), pkgs))
+            pkgs = [self._save_queue.get()]
+            while not self._save_queue.empty() and len(pkgs) < 500:
+                pkgs.append(self._save_queue.get(block=False))
 
             # 按照协议分别写入对应的csv文件
-            pickle_data = []
             pkgs = sorted(pkgs, key=lambda x: x.proto_type)
             for proto_type, pkgs in groupby(pkgs, key=lambda x: x.proto_type):
-                csv_data = list(chain(*chain(map(lambda x: x.result, pkgs))))
-                Tlv.proto_handler[proto_type].save(csv_data)
-                pickle_data += list(map(lambda x: x.pickle_data, pkgs))
-                if config['gui']:
-                    if proto_type == Sensor300d.PROTO_ID:
-                        list(map(lambda x: self.sensor_queue.put(x), csv_data))
-                    elif proto_type == Tof2011.PROTO_ID:
-                        list(map(lambda x: self.tof_queue.put(x), csv_data))
+                csv_data = list(chain(*chain(map(lambda x: (pickle_file.write(pickle.dumps(x.pickle_data)), x.result)[1], pkgs))))
+                Tlv.PROTO_HANDLER[proto_type].save(csv_data)
 
-            # pickle写文件
-            pickle_file.write(pickle.dumps(pickle_data))
-            pickle_file.flush()
