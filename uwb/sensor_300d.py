@@ -3,36 +3,41 @@ import multiprocessing
 import queue
 import threading
 import time
+import os
 from common.common import get_header, logger, save
 import struct
 
 
-
 class Sensor300d:
     PROTO_ID = 0x300d
-    NAME = 'out_file/传感器数据输出'
+    # NAME = os.path.join(out_file_dir, '传感器数据输出')
     history_data = {}
     lock = threading.Lock()
     fieldnames = ['rolling', 'TagID', 'time', 'batt', 'pres', 'temp', 'acc_x', 'acc_y', 'acc_z', 'gyr_x', 'gyr_y',
                   'gyr_z', 'mag_x', 'mag_y', 'mag_z']
-    csv_file = open(f'{NAME}.csv', 'a', newline='', encoding='utf-8')
+    # csv_file = open(f'{NAME}.csv', 'a', newline='', encoding='utf-8')
     gui_data = []
-    writer = csv.writer(csv_file)
+    # writer = csv.writer(csv_file)
     save_queue = multiprocessing.Queue()
-    t = threading.Thread(target=save, args=(writer, save_queue, csv_file), daemon=True)
-    t.start()
+    # t = threading.Thread(target=save, args=(writer, save_queue, csv_file), daemon=True)
+    # t.start()
 
     @staticmethod
     def save(pkgs):
-        # list(map(lambda x: Sensor300dWidght.gui_queue.put(x), pkgs))
-        #Sensor300d.gui_data += pkgs
-        # Sensor300d.gui_data = Sensor300d.gui_data[-500:]  # 内存中最多保留1000条
         return Sensor300d.save_queue.put(pkgs)
 
-    def __init__(self):
-        header = get_header(f'{self.NAME}.csv')
+    @staticmethod
+    def init(out_file_dir):
+        Sensor300d.NAME = os.path.join(out_file_dir, '传感器数据输出')
+        Sensor300d.csv_file = open(
+            f'{Sensor300d.NAME}.csv', 'a', newline='', encoding='utf-8')
+        Sensor300d.writer = csv.writer(Sensor300d.csv_file)
+        Sensor300d.t = threading.Thread(target=save, args=(
+            Sensor300d.writer, Sensor300d.save_queue, Sensor300d.csv_file), daemon=True)
+        Sensor300d.t.start()
+        header = get_header(f'{Sensor300d.NAME}.csv')
         if not header:
-            Sensor300d.writer.writerow(self.fieldnames)
+            Sensor300d.writer.writerow(Sensor300d.fieldnames)
 
     # 保存gui需要的数据
     @staticmethod
@@ -49,37 +54,42 @@ class Sensor300d:
     # 去重
     @staticmethod
     def deduplication(rolling, tag_id):
-        with Sensor300d.lock:
-            if rolling not in Sensor300d.history_data:
-                Sensor300d.history_data[rolling] = {'tagid': {tag_id}}
-            elif tag_id in Sensor300d.history_data[rolling]['tagid']:
-                return True
-            else:
-                Sensor300d.history_data[rolling]['tagid'].add(tag_id)
-            Sensor300d.history_data[rolling]['timestampe'] = time.time()
-            return False
+        # with Sensor300d.lock:
+        if rolling not in Sensor300d.history_data:
+            Sensor300d.history_data[rolling] = {'tagid': {tag_id}}
+        elif tag_id in Sensor300d.history_data[rolling]['tagid']:
+            return True
+        else:
+            Sensor300d.history_data[rolling]['tagid'].add(tag_id)
+        Sensor300d.history_data[rolling]['timestampe'] = time.time()
+        Sensor300d.history_data = {rolling: value for rolling, value in Sensor300d.history_data.items(
+        ) if value['timestampe'] > (time.time() - 60)}
+        return False
 
     # 删除过期的历史数据
     @staticmethod
     def delete_old_history_data(interval=60):
         with Sensor300d.lock:
-            Sensor300d.history_data = {rolling: value for rolling, value in Sensor300d.history_data.items() if value['timestampe'] > (time.time() - interval)}
+            Sensor300d.history_data = {rolling: value for rolling, value in Sensor300d.history_data.items(
+            ) if value['timestampe'] > (time.time() - interval)}
             # for rolling, value in Sensor300d.history_data.items():
             #     if value['timestampe'] < time.time() - interval:
             #         del Sensor300d.history_data[rolling]
 
-
     @staticmethod
     def parase(length, value):
-        source_id, tag_id, rolling, time, batt, pres, temp = struct.unpack("<3HL3f", value[:22])
+        source_id, tag_id, rolling, time, batt, pres, temp = struct.unpack(
+            "<3HL3f", value[:22])
         # if len(value[22:]) < 38:
         #     logger.error(f'error len {value[22:]}')
         #     return None
         if Sensor300d.deduplication(rolling, tag_id):  # 重复数据
             return None
 
-        acc_x, acc_y, acc_z, gyr_x, gyr_y, gyr_z, mag_x, mag_y, mag_z, heart_rate = struct.unpack("9fH", value[22:])
-        ret = [[rolling], [tag_id], [time], [batt], [pres], [temp], [acc_x], [acc_y], [acc_z], [gyr_x], [gyr_y], [gyr_z], [mag_x], [mag_y], [mag_z]]
+        acc_x, acc_y, acc_z, gyr_x, gyr_y, gyr_z, mag_x, mag_y, mag_z, heart_rate = struct.unpack(
+            "9fH", value[22:])
+        ret = [[rolling], [tag_id], [time], [batt], [pres], [temp], [acc_x], [
+            acc_y], [acc_z], [gyr_x], [gyr_y], [gyr_z], [mag_x], [mag_y], [mag_z]]
         ret = list(zip(*ret))
         # ret = {
         #     "rolling": [rolling],

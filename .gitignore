@@ -11,3 +11,4 @@ tmp.py
 tmp.spec
 Pipfile
 *.exe
+.vscode

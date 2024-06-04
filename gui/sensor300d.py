@@ -18,7 +18,7 @@ class Sensor300dWidght(QWidget):
     def __init__(self):
         super().__init__()
         self.gui_data = []
-        self.x_range = 100
+        self.x_range = 50
 
         self.main_layout = QVBoxLayout(self)
         up_layout = QHBoxLayout()
@@ -65,11 +65,11 @@ class Sensor300dWidght(QWidget):
         self.pw1.setLabel('bottom', "rolling")  # 设置X轴标签
         self.acc_x, self.acc_y, self.acc_z = [], [], []
         self.plot_acc_x = self.pw1.plot(self.x_rolling, self.acc_x, pen=pg.mkPen(color=(0, 0, 100), width=3),
-                                      symbol='s', symbolBrush='b', name='acc_x')
+                                      symbol='o', symbolBrush='b', name='acc_x', symbolSize=6)
         self.plot_acc_y = self.pw1.plot(self.x_rolling, self.acc_y, pen=pg.mkPen(color=(0, 100, 0), width=3),
-                                      symbol='s', symbolBrush='g', name='acc_y')
+                                      symbol='o', symbolBrush='g', name='acc_y', symbolSize=6)
         self.plot_acc_z = self.pw1.plot(self.x_rolling, self.acc_z, pen=pg.mkPen(color=(100, 0, 0), width=3),
-                                      symbol='s', symbolBrush='r', name='acc_z')
+                                      symbol='o', symbolBrush='r', name='acc_z', symbolSize=6)
         down_layout.addWidget(self.pw1)
         # 创建一个图例
         legend = pg.LegendItem(offset=(60, 20))
@@ -89,11 +89,11 @@ class Sensor300dWidght(QWidget):
         self.pw2.setLabel('bottom', "rolling")  # 设置X轴标签
         self.gyr_x, self.gyr_y, self.gyr_z = [], [], []
         self.plot_gyr_x = self.pw2.plot(self.x_rolling, self.gyr_x, pen=pg.mkPen(color=(0, 0, 100), width=3),
-                                      symbol='s', symbolBrush='b', name='gyr_x')
+                                      symbol='o', symbolBrush='b', name='gyr_x', symbolSize=6)
         self.plot_gyr_y = self.pw2.plot(self.x_rolling, self.gyr_y, pen=pg.mkPen(color=(0, 100, 0), width=3),
-                                      symbol='s', symbolBrush='g', name='gyr_y')
+                                      symbol='o', symbolBrush='g', name='gyr_y', symbolSize=6)
         self.plot_gyr_z = self.pw2.plot(self.x_rolling, self.gyr_z, pen=pg.mkPen(color=(100, 0, 0), width=3),
-                                      symbol='s', symbolBrush='r', name='gyr_z')
+                                      symbol='o', symbolBrush='r', name='gyr_z', symbolSize=6)
         down_layout.addWidget(self.pw2)
         legend = pg.LegendItem(offset=(60, 20))
         legend.setParentItem(self.pw2.graphicsItem())
@@ -112,11 +112,11 @@ class Sensor300dWidght(QWidget):
         self.pw3.setLabel('bottom', "rolling")  # 设置X轴标签
         self.mag_x, self.mag_y, self.mag_z = [], [], []
         self.plot_mag_x = self.pw3.plot(self.x_rolling, self.mag_x, pen=pg.mkPen(color=(0, 0, 100), width=3),
-                                        symbol='s', symbolBrush='b', name='mag_x')
+                                        symbol='o', symbolBrush='b', name='mag_x', symbolSize=6)
         self.plot_mag_y = self.pw3.plot(self.x_rolling, self.mag_y, pen=pg.mkPen(color=(0, 100, 0), width=3),
-                                        symbol='s', symbolBrush='g', name='mag_y')
+                                        symbol='s', symbolBrush='g', name='mag_y', symbolSize=6)
         self.plot_mag_z = self.pw3.plot(self.x_rolling, self.mag_z, pen=pg.mkPen(color=(100, 0, 0), width=3),
-                                        symbol='s', symbolBrush='r', name='mag_z')
+                                        symbol='o', symbolBrush='r', name='mag_z', symbolSize=6)
         down_layout.addWidget(self.pw3)
         legend = pg.LegendItem(offset=(60, 20))
         legend.setParentItem(self.pw3.graphicsItem())
@@ -205,7 +205,7 @@ class Sensor300dWidght(QWidget):
                     self.tag_id_combox.blockSignals(False)
                     self.last_update_tagid_time = time.time()
                     logger.info(
-                        f'传感器显示数据队列积压：{gui_queue.qsize()}, 积压全量gui数据：{len(self.gui_data)}，x轴最小值{self.x_rolling[0] if self.x_rolling else None}，x轴长度：{len(self.x_rolling)}，tagid数量：{len(tag_id_set)}')
+                        f'传感器显示数据队列积压：{gui_queue.qsize()}, 积压全量gui数据：{len(self.gui_data)}，x轴范围{self.x_rolling[0] if self.x_rolling else None}-{self.x_rolling[-1] if self.x_rolling else None}，x轴长度：{len(self.x_rolling)}，tagid数量：{len(tag_id_set)}')
 
                 # 筛选当前tagid的数据用于显示
                 show_pkgs = list(filter(lambda x: x[1] == self.cur_tag_id and x[0] not in self.x_rolling, pkgs))

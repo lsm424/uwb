@@ -5,7 +5,7 @@ from time import time
 from collections import defaultdict
 
 
-from common.common import logger, pickle_file
+from common.common import logger
 from uwb.cir_2121 import Cir2121
 from uwb.sensor_300d import Sensor300d
 from uwb.slot_2042 import Slot2042
@@ -58,7 +58,6 @@ from uwb.tof_2011 import Tof2011
 #         return self
 
 
-
 class Tlv:
     PROTO_HANDLER = {
         Cir2121.PROTO_ID: Cir2121(),
@@ -78,8 +77,8 @@ class Tlv:
         self.proto_type = proto_type
         self.handler = Tlv.PROTO_HANDLER[proto_type]
         self.result = None
-        self.pickle_data = {'raw_data': self.raw_data, 'addr': self.addr, 'timestampe': time()}
-
+        self.pickle_data = {'raw_data': self.raw_data,
+                            'addr': self.addr, 'timestampe': time()}
 
     def parase(self):
         self.result = self.handler.parase(self.body_len, self.body_data)

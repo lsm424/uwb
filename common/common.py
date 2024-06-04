@@ -1,12 +1,13 @@
 import csv
 import os
 import time
-
+import datetime
 import loguru
 import yaml
 
 
-loguru.logger.add("./ubw.log", level="INFO", encoding="utf-8", retention="10 days", rotation="1 day", enqueue=True)
+loguru.logger.add("./ubw.log", level="INFO", encoding="utf-8",
+                  retention="10 days", rotation="1 day", enqueue=True)
 logger = loguru.logger
 
 if not os.path.exists('config.yaml'):
@@ -18,6 +19,8 @@ with open(file="config.yaml", mode="r", encoding='utf-8') as f:
     config = yaml.safe_load(f)
 
 # 提取csv文件头
+
+
 def get_header(filename):
     if not os.path.exists(filename):
         return None
@@ -29,9 +32,12 @@ def get_header(filename):
             return None
         return header
 
-if not os.path.exists('./out_file'):
-    os.mkdir('./out_file')
-pickle_file = open('out_file/pickle_file.dat', 'ab')
+
+# out_file_dir = os.path.join(
+#     'out_file', datetime.datetime.now().strftime('%Y-%m-%d_%H%M%S'))
+# if not os.path.exists(out_file_dir):
+#     os.makedirs(out_file_dir)
+# logger.info(f'文件输出路径：{out_file_dir}')
 
 
 def save(writer, queue, csv_file):
