@@ -59,8 +59,8 @@ class Uwb:
         self.cache.create_index('rolling', 'timestamp')
 
         self.threads = []
-        self.threads.append(threading.Thread(
-            target=self.delete_aggregate, daemon=True))
+        # self.threads.append(threading.Thread(
+        #     target=self.delete_aggregate, daemon=True))
         self.threads.append(threading.Thread(
             target=self.access_read_thread, daemon=True))
         self.threads.append(threading.Thread(
@@ -78,14 +78,14 @@ class Uwb:
 
     def statistic(self):
         while True:
-            logger.info(f'解析tlv速度：{self.access.cnt}/s, 待汇聚队列积压: {self.access.qsize()}, 解析测量值队列积压: {sum(map(lambda x: x.qsize(), self.parase_queue))}, 待序列化文件队列积压: {self._save_queue.qsize()}，已写入pickle_data：{self.pickle_cnt}条, sensor写csv队列积压：{Sensor300d.save_queue.qsize()}, tof写csv队列积压：{Tof2011.save_queue.qsize()} dbsize:{sys.getsizeof(self.cache)},{len(self.cache)}')
+            logger.info(f'解析tlv速度：{int(self.access.cnt / 3)}/s, 待汇聚队列积压: {self.access.qsize()}, 解析测量值队列积压: {sum(map(lambda x: x.qsize(), self.parase_queue))}, 待序列化文件队列积压: {self._save_queue.qsize()}，已写入pickle_data：{self.pickle_cnt}条, sensor写csv队列积压：{Sensor300d.save_queue.qsize()}, tof写csv队列积压：{Tof2011.save_queue.qsize()} dbsize:{sys.getsizeof(self.cache)},{len(self.cache)}')
             self.access.cnt = 0
             # Sensor300d.delete_old_history_data(60)
             # Tof2011.delete_old_history_data(60)
             self.pickle_file.flush()
             Tof2011.csv_file.flush()
             Sensor300d.csv_file.flush()
-            sleep(1)
+            sleep(3)
 
     # 主流程
     def access_read_thread(self):
@@ -94,36 +94,43 @@ class Uwb:
             # 接收一帧数据
             tlv = self.access.get_data()
             # 汇聚
-            with self.lock:
-                ret = self.cache(rolling=tlv.rolling)
-                if not ret or (time() - ret[0]['timestamp'] > 0.2):
-                    if ret:
-                        self.parase_queue[tlv.rolling % config['parase_worker_cnt']].put(
-                            ret[0]['tlv_list'])
-                        self.cache.delete(ret[0])
-                    self.cache.insert(rolling=tlv.rolling,
-                                      timestamp=time(), tlv_list=[tlv])
-                else:
-                    ret[0]['tlv_list'].append(tlv)
+            ret = self.cache(rolling=tlv.rolling)
+            if not ret:
+                self.cache.insert(rolling=tlv.rolling, timestamp=time(), tlv_list=[tlv])
+            elif time() - ret[0]['timestamp'] > 0.2:
+                idx = tlv.rolling % config['parase_worker_cnt']
+                self.parase_queue[tlv.rolling % config['parase_worker_cnt']].put(ret[0]['tlv_list'])
+                self.cache.delete(ret[0])
+                # logger.warning(f'完成汇聚滚码{tlv.rolling}，往{idx}号分析进程推送{len(ret[0]["tlv_list"])}包')
+            else:
+                ret[0]['tlv_list'].append(tlv)
+
+            rows = self.cache('timestamp') < (time() - 0.5)
+            list(map(lambda x: (self.parase_queue[x['rolling'] % config['parase_worker_cnt']].put(x['tlv_list']),
+                                self.cache.delete(x)), rows))
+                # logger.warning(f'汇聚1包tlv {tlv.rolling}，已经积累{len(ret[0]["tlv_list"])}包')
 
     # 周期删除汇聚结果
-    def delete_aggregate(self):
-        logger.info(f'启动汇聚结果过期删除线程')
-        while True:
-            sleep(0.2)
-            with self.lock:
-                rows = self.cache('timestamp') < (time() - 0.3)
-                list(map(lambda x: self.cache.delete(x), rows))
+    # def delete_aggregate(self):
+    #     return
+    #     logger.info(f'启动汇聚结果过期删除线程')
+    #     while True:
+    #         sleep(0.2)
+    #         with self.lock:
+    #             rows = self.cache('timestamp') < (time() - 60)
+    #             list(map(lambda x: self.cache.delete(x), rows))
 
     @staticmethod
     def parase_tlv_proc(parase_queue, save_queue, sensor_gui_queue, tof_gui_queue, sensor_queue, tof_queue, i):
         logger.info(f'启动解析tlv测量值进程, {i}')
         while True:
             tlv_list = parase_queue.get()
-            tlv_list = filter(lambda x: x.result, map(
-                lambda x: x.parase(), tlv_list))
+            tlv_list = list(filter(lambda x: x.result, map(
+                lambda x: x.parase(), tlv_list)))
 
-            
+            # tof_cnt = len(list(filter(lambda x: x.proto_type == Tof2011.PROTO_ID, tlv_list)))
+            # grp = {k: len(list(v)) for k, v in groupby(tlv_list, lambda x: x.proto_type)}
+            # logger.warning(f'{i} 收到{len(tlv_list)}包tlv，{grp}')
 
             tof_csv_data, sensor_csv_data, pickle_data = [], [], []
             for tlv in tlv_list:

@@ -6,8 +6,8 @@ import time,json
 import math,random
 import struct,crcmod
 import os
-anchorCount = 60
-tagCount = 120 # 3.5MB/s
+anchorCount = 6
+tagCount = 1 # 3.5MB/s
 np.random.seed(666)
 random.seed(666)
 
@@ -307,7 +307,10 @@ try:
             time.sleep(0.01)
         t0=t0+0.05;
         N=N+1;
-        freq = N/(time.time()-tinit)
+        try:
+            freq = N/(time.time()-tinit)
+        except BaseException as e:
+            continue
         print("实际发送频率",freq)
 except KeyboardInterrupt:
     for i in sock:i.close();

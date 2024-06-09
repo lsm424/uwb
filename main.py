@@ -13,7 +13,6 @@ def uwb_run(sensor_queue, tof_queue):
     from uwb.uwb import Uwb
     global uwb
     uwb = Uwb(sensor_queue, tof_queue)
-    signal.signal(signal.SIGINT, lambda sig, frame: on_app_exit(uwb))
     uwb.join()
 
 
@@ -25,19 +24,19 @@ def on_app_exit(uwb=None):
 
 if __name__ == '__main__':
     # freeze_support()
-    global uwb
+    uwb = Uwb(Sensor300dWidght.gui_queue, Tof2011Widght.gui_queue)
+    signal.signal(signal.SIGINT, lambda sig, frame: on_app_exit(uwb))
 
     if config['gui']:
-        # uwb = Uwb(Sensor300dWidght.gui_queue, Tof2011Widght.gui_queue)
-        p = Process(target=uwb_run, args=(
-            Sensor300dWidght.gui_queue, Tof2011Widght.gui_queue))
-        p.start()
+        # p = Process(target=uwb_run, args=(
+        #     Sensor300dWidght.gui_queue, Tof2011Widght.gui_queue))
+        # p.start()
         from PySide6.QtWidgets import QApplication
         from gui.mainwinow import MainWindow
         app = QApplication(sys.argv)
-        app.lastWindowClosed.connect(lambda: os.kill(p.pid, signal.SIGTERM))
+        app.lastWindowClosed.connect(lambda: on_app_exit(uwb))
         mainWindow = MainWindow()
         mainWindow.show()
         sys.exit(app.exec())
     else:
-        uwb_run(None, None)
+        uwb.join()

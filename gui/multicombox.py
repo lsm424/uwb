@@ -30,6 +30,8 @@ class CheckableComboBox(QComboBox):
 
     def ifChecked(self, index):
         item = self.model().item(index, 0)
+        if not item:
+            return False
         return item.checkState() == Qt.CheckState.Checked
 
     def checkedItems(self):

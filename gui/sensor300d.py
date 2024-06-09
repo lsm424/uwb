@@ -17,6 +17,7 @@ class Sensor300dWidght(QWidget):
 
     def __init__(self):
         super().__init__()
+        self.lock = threading.Lock()
         self.gui_data = []
         self.x_range = 50
 
@@ -135,8 +136,7 @@ class Sensor300dWidght(QWidget):
         self.last_update_tagid_time = time.time()
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.timeout_plot)
-        self.timer.start(100)
-
+        self.timer.start(300)
 
     def tagid_selection_changed(self, index):
         try:
@@ -205,7 +205,7 @@ class Sensor300dWidght(QWidget):
                     self.tag_id_combox.blockSignals(False)
                     self.last_update_tagid_time = time.time()
                     logger.info(
-                        f'传感器显示数据队列积压：{gui_queue.qsize()}, 积压全量gui数据：{len(self.gui_data)}，x轴范围{self.x_rolling[0] if self.x_rolling else None}-{self.x_rolling[-1] if self.x_rolling else None}，x轴长度：{len(self.x_rolling)}，tagid数量：{len(tag_id_set)}')
+                        f'传感器显示数据队列积压：{gui_queue.qsize()}, x轴范围{self.x_rolling[0] if self.x_rolling else None}-{self.x_rolling[-1] if self.x_rolling else None}，x轴长度：{len(self.x_rolling)}，tagid数量：{len(tag_id_set)}')
 
                 # 筛选当前tagid的数据用于显示
                 show_pkgs = list(filter(lambda x: x[1] == self.cur_tag_id and x[0] not in self.x_rolling, pkgs))
