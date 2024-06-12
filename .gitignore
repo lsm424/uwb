@@ -12,3 +12,4 @@ tmp.spec
 Pipfile
 *.exe
 .vscode
+uwb.dat

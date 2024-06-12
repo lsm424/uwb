@@ -6,8 +6,8 @@ import time,json
 import math,random
 import struct,crcmod
 import os
-anchorCount = 6
-tagCount = 1 # 3.5MB/s
+anchorCount = 60
+tagCount = 60 # 3.5MB/s
 np.random.seed(666)
 random.seed(666)
 
@@ -301,7 +301,7 @@ try:
             anchor=gateways[i];
             data=anchor.GetTLVData();
             while(len(data)>0):
-                sock[i].sendto(data[:1024],("127.0.0.1",9999))
+                sock[i].sendto(data[:1024],("42.194.228.27",9999))
                 data=data[1024:]
         while(time.time()<t0):
             time.sleep(0.01)

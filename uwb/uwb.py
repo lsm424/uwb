@@ -36,13 +36,12 @@ class Uwb:
             p.start()
             self.p.append(p)
 
-        out_file_dir = os.path.join(
-            'out_file', datetime.datetime.now().strftime('%Y-%m-%d_%H%M%S'))
+        out_file_dir = os.path.join('out_file', datetime.datetime.now().strftime('%Y-%m-%d_%H%M%S'))
         if not os.path.exists(out_file_dir):
             os.makedirs(out_file_dir)
-        logger.info(f'文件输出路径：{out_file_dir}')
-        self.pickle_file = open(os.path.join(
-            out_file_dir, 'pickle_file.dat'), 'ab')
+        logger.info(f'文件输出路径：{out_file_dir}, 进程号：{os.getpid()}')
+        open('uwb.dat', 'w+').write(str(os.getpid()))
+        self.pickle_file = open(os.path.join(out_file_dir, 'pickle_file.dat'), 'ab')
         Tof2011.init(out_file_dir)
         Sensor300d.init(out_file_dir)
         Cir2121.init(out_file_dir)
@@ -122,15 +121,15 @@ class Uwb:
 
     @staticmethod
     def parase_tlv_proc(parase_queue, save_queue, sensor_gui_queue, tof_gui_queue, sensor_queue, tof_queue, i):
-        logger.info(f'启动解析tlv测量值进程, {i}')
+        logger.info(f'启动解析tlv测量值进程{i}, pid:{os.getpid()}')
         while True:
             tlv_list = parase_queue.get()
-            tlv_list = list(filter(lambda x: x.result, map(
-                lambda x: x.parase(), tlv_list)))
+            # logger.warning(f'{i} 处理{len(tlv_list)}包tlv')
+            tlv_list = list(filter(lambda x: x.result, map(lambda x: x.parase(), tlv_list)))
 
             # tof_cnt = len(list(filter(lambda x: x.proto_type == Tof2011.PROTO_ID, tlv_list)))
             # grp = {k: len(list(v)) for k, v in groupby(tlv_list, lambda x: x.proto_type)}
-            # logger.warning(f'{i} 收到{len(tlv_list)}包tlv，{grp}')
+            # logger.warning(f'{i} 收到{len(tlv_list)}包tlv')
 
             tof_csv_data, sensor_csv_data, pickle_data = [], [], []
             for tlv in tlv_list:

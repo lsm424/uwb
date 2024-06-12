@@ -54,13 +54,16 @@ class Access:
             validFrames = np.logical_and(np.logical_and(
                 tailPos < len(d), lengths < 4096), np.isin(types, Tlv.TYPES))
             headerPos = headerPos[validFrames]
+            if len(headerPos) == 0:
+                buffer[src] = d
+                continue
             tailPos = tailPos[validFrames]
             types = types[validFrames]
-            lengths = d[headerPos + 6] + \
-                (d[headerPos + 7].astype(np.uint16) << 8)
+            lengths = d[headerPos + 6] + (d[headerPos + 7].astype(np.uint16) << 8)
 
             offset = headerPos + np.array([rolling_offset(i) for i in types])
             rollings = d[offset] + (d[offset + 1].astype(np.uint16) << 8)
+
             [self._out_queue.put(Tlv(src, bytes(d[headerPos[i]:tailPos[i]].tobytes(
             )), lengths[i], types[i], rollings[i])) for i in range(len(types))]
             buffer[src] = d[tailPos[-1]:]

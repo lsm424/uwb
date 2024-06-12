@@ -209,10 +209,18 @@ class Tof2011Widght(QWidget):
             if len(pkgs) == 0:
                 continue
 
-            self.gui_data = np.vstack((self.gui_data, pkgs)) if len(
-                self.gui_data) > 0 else pkgs
-            self.gui_data = self.gui_data[np.argsort(
-                self.gui_data[:, 0])][-5000:]  # 按照滚码排序
+            # 处理突变
+            # if len(self.gui_data) > 0:
+            #     rolling_data = pkgs[:, 0]
+            #     max_rolling = self.gui_data[:, 0][-1]
+            #     less_than_1000_indices = np.where(rolling_data < (max_rolling - 1000))[0]
+            #     if len(less_than_1000_indices) > 0:
+            #         min_val = np.min(rolling_data[less_than_1000_indices])
+            #         rolling_data[less_than_1000_indices] += (max_rolling - min_val + 1)
+                    # pkgs[:, 0] = rolling_data
+
+            self.gui_data = np.vstack((self.gui_data, pkgs)) if len(self.gui_data) > 0 else pkgs
+            self.gui_data = self.gui_data[np.argsort(self.gui_data[:, 0])][-5000:]  # 按照滚码排序
 
             # 每3秒更新下拉列表
             if self.cur_tag_id is None or time.time() - self.last_update_tagid_time > 5:

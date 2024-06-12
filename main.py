@@ -22,10 +22,28 @@ def on_app_exit(uwb=None):
         uwb.exit()
 
 
+def signal_handler(Signal, Frame):
+    # 在这里处理Ctrl+C被按下后的逻辑
+    print(Signal, Frame)
+    print(f"Ctrl+C被按下 {os.getpid()}")
+    pid = int(open('uwb.dat', 'r').read())
+    # os.kill(os.getpid(), signal.SIGTERM)
+    os.kill(pid, signal.SIGTERM)
+    os.kill(os.getpid(), signal.SIGTERM)
+
+    # if uwb:
+    #     print("uwb退出")
+    #     uwb.exit()
+
+# 设置信号处理程序
+signal.signal(signal.SIGINT, signal_handler)
+
 if __name__ == '__main__':
+    global uwb
     # freeze_support()
     uwb = Uwb(Sensor300dWidght.gui_queue, Tof2011Widght.gui_queue)
-    signal.signal(signal.SIGINT, lambda sig, frame: on_app_exit(uwb))
+    # signal.signal(signal.SIGINT, lambda sig, frame: on_app_exit(uwb))
+    # signal.signal(signal.SIGINT, lambda sig, frame: on_app_exit(uwb))
 
     if config['gui']:
         # p = Process(target=uwb_run, args=(
