@@ -29,11 +29,9 @@ class Sensor300d:
     @staticmethod
     def init(out_file_dir):
         Sensor300d.NAME = os.path.join(out_file_dir, '传感器数据输出')
-        Sensor300d.csv_file = open(
-            f'{Sensor300d.NAME}.csv', 'a', newline='', encoding='utf-8')
+        Sensor300d.csv_file = open(f'{Sensor300d.NAME}.csv', 'a', newline='', encoding='utf-8')
         Sensor300d.writer = csv.writer(Sensor300d.csv_file)
-        Sensor300d.t = threading.Thread(target=save, args=(
-            Sensor300d.writer, Sensor300d.save_queue, Sensor300d.csv_file), daemon=True)
+        Sensor300d.t = threading.Thread(target=save, args=(Sensor300d.writer, Sensor300d.save_queue, Sensor300d.csv_file), daemon=True)
         Sensor300d.t.start()
         header = get_header(f'{Sensor300d.NAME}.csv')
         if not header:

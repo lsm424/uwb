@@ -45,5 +45,10 @@ def save(writer, queue, csv_file):
         pkgs = queue.get()
         while not queue.empty() and len(pkgs) < 2000:
             pkgs += queue.get(block=False)
+        if len(pkgs) == 0:
+          continue
         writer.writerows(pkgs)
+        if '传感器' in str(csv_file) or 'TOF' in str(csv_file):
+          continue
+        logger.warning(f'{csv_file} 写文件{len(pkgs)}')
         # csv_file.flush()

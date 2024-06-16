@@ -27,11 +27,9 @@ class Tod4090:
     @staticmethod
     def init(out_file_dir):
         Tod4090.NAME = os.path.join(out_file_dir, 'TDOA与PDOA集中上传')
-        Tod4090.csv_file = open(
-            f'{Tod4090.NAME}.csv', 'a', newline='', encoding='utf-8')
+        Tod4090.csv_file = open(f'{Tod4090.NAME}.csv', 'a', newline='', encoding='utf-8')
         Tod4090.writer = csv.writer(Tod4090.csv_file)
-        Tod4090.t = threading.Thread(target=save, args=(
-            Tod4090.writer, Tod4090.save_queue, Tod4090.csv_file), daemon=True)
+        Tod4090.t = threading.Thread(target=save, args=(Tod4090.writer, Tod4090.save_queue, Tod4090.csv_file), daemon=True)
         Tod4090.t.start()
         header = get_header(f'{Tod4090.NAME}.csv')
         if not header:

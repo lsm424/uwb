@@ -2,8 +2,8 @@ import random
 import threading
 import time
 from multiprocessing import Queue
-from PySide6.QtCore import QTimer
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QComboBox, QLabel, QSpacerItem
+from PySide6.QtCore import QTimer, QTime, Signal
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QComboBox, QLabel, QApplication
 import pyqtgraph as pg
 import math
 import numpy as np
@@ -19,6 +19,7 @@ pg.setConfigOption('background', 'w')  # 初始的背景(白)
 class Tof2011Widght(QWidget):
 
     gui_queue = Queue()
+    update_combox_signal = Signal()
 
     def __init__(self):
         super().__init__()
@@ -37,11 +38,15 @@ class Tof2011Widght(QWidget):
 
         # 顶部下拉框
         self.tag_id_combox = QComboBox()
-        self.tag_id_combox.currentIndexChanged.connect(
-            self.tagid_selection_changed)
+        # for i in range(200):
+        #     self.tag_id_combox.addItem(str(i))
+        # self.tag_id_combox.addItem('7767')
+        # self.tag_id_combox.setCurrentText('7767')
+        self.tag_id_combox.currentIndexChanged.connect(self.tagid_selection_changed)
         self.anchor_id_combox = CheckableComboBox()
-        self.anchor_id_combox.view.clicked.connect(
-            self.anchorid_selection_changed)
+        # self.anchor_id_combox.addItems(list(map(lambda x: str(x), range(1000))))
+        self.anchor_id_combox.view.clicked.connect(self.anchorid_selection_changed)
+
         up_layout = QHBoxLayout()
         up_layout.addSpacing(100)
         up_layout.addWidget(QLabel('tagid选择：'))
@@ -93,6 +98,12 @@ class Tof2011Widght(QWidget):
         self.timer.timeout.connect(self.timeout_plot)
         self.timer.start(300)
 
+        self.update_combox_timer = QTimer(self)
+        self.update_combox_timer.timeout.connect(self.update_combox)
+        self.update_combox_timer.start(5000)
+
+        self.update_combox_signal.connect(self.update_combox)
+
     def tagid_selection_changed(self, index):
         try:
             with self.lock:
@@ -118,7 +129,7 @@ class Tof2011Widght(QWidget):
                 self.anchor_id_combox.blockSignals(False)
 
                 # 更新gui显示数据
-                logger.info(f'tof tagid选择变动：{self.cur_tag_id}， 当前：{self.cur_anchor_id}')
+                logger.info(f'tof tagid选择变动：{self.cur_tag_id}, tag数量：{self.tag_id_combox.count()}， 当前：{self.cur_anchor_id}')
             if not self.generate_distance_data_curve(self.gui_data, False):
                 with self.lock:
                     self.tag_id_combox.removeItem(index)
@@ -148,25 +159,19 @@ class Tof2011Widght(QWidget):
                 if len(show_pkgs) == 0:
                     continue
                 # 过滤anchorid、tagid的包
-                x_rolling, y_distance, rxl, fpl = show_pkgs[:,
-                                                            0], show_pkgs[:, 3], show_pkgs[:, 4], show_pkgs[:, 5]
+                x_rolling, y_distance, rxl, fpl = show_pkgs[:, 0], show_pkgs[:, 3], show_pkgs[:, 4], show_pkgs[:, 5]
                 if incr:
-                    ori_x_rolling, ori_y_distance = self.plot_distance.get(x, {}).get(
-                        'x', []), self.plot_distance.get(x, {}).get('y', [])
-                    x_rolling, y_distance = np.concatenate(
-                        (ori_x_rolling, x_rolling)), np.concatenate((ori_y_distance, y_distance))
+                    ori_x_rolling, ori_y_distance = self.plot_distance.get(x, {}).get('x', []), self.plot_distance.get(x, {}).get('y', [])
+                    x_rolling, y_distance = np.concatenate((ori_x_rolling, x_rolling)), np.concatenate((ori_y_distance, y_distance))
                     x_rolling_idx = np.argsort(x_rolling)
-                    x_rolling, y_distance = x_rolling[x_rolling_idx][-self.x_range:
-                                                                     ], y_distance[x_rolling_idx][-self.x_range:]
+                    x_rolling, y_distance = x_rolling[x_rolling_idx][-self.x_range:], y_distance[x_rolling_idx][-self.x_range:]
                     if len(self.cur_anchor_id) == 1:  # 只有一个anchorid，则更新rxl、fpl
                         self.x_rolling, self.y_rxl, self.y_fpl = (x_rolling, np.concatenate((self.y_rxl, rxl))[x_rolling_idx][-self.x_range:],
                                                                   np.concatenate((self.y_fpl, fpl))[x_rolling_idx][-self.x_range:])
                 else:
                     if len(self.cur_anchor_id) == 1:
-                        self.x_rolling, self.y_rxl, self.y_fpl = x_rolling[-self.x_range:
-                                                                           ], rxl[-self.x_range:], fpl[-self.x_range:]
-                    x_rolling, y_distance = (
-                        x_rolling[-self.x_range:], y_distance[-self.x_range:])
+                        self.x_rolling, self.y_rxl, self.y_fpl = x_rolling[-self.x_range:], rxl[-self.x_range:], fpl[-self.x_range:]
+                    x_rolling, y_distance = (x_rolling[-self.x_range:], y_distance[-self.x_range:])
 
                 if 'line' not in self.plot_distance.get(x, {}):
                     ploter = self.pw1.plot(x_rolling, y_distance, pen=pg.mkPen(color=random.randint(0, 0xffffff) | 0xff00, width=3),
@@ -196,19 +201,44 @@ class Tof2011Widght(QWidget):
                 logger.warning(f'全量刷新tof，图例数量：{len(self.legend.items)} anchcor_id: {self.cur_anchor_id}, plot_distance: {self.plot_distance.keys()}')
             return len(self.plot_distance) != 0
 
+    def update_combox(self):
+        if not self.tagid2anchorid:
+            return
+        anchorid_set = set(self.tagid2anchorid[self.cur_tag_id]) | set(self.cur_anchor_id)
+        tag_id_list = list(map(lambda x: str(x), sorted(self.tag_id_set)))
+        self.tag_id_combox.blockSignals(True)
+        self.tag_id_combox.clear()
+        self.tag_id_combox.addItems(tag_id_list)
+        self.tag_id_combox.setCurrentText(str(self.cur_tag_id))
+        self.tag_id_combox.blockSignals(False)
+
+        self.anchor_id_combox.blockSignals(True)
+        self.anchor_id_combox.clear()
+        self.anchor_id_combox.addCheckableItems(anchorid_set)
+        self.anchor_id_combox.select_items(self.cur_anchor_id)
+        self.anchor_id_combox.blockSignals(False)
+
+        self.last_update_tagid_time = time.time()
+        logger.info(f'tof显示数据队列积压：{Tof2011Widght.gui_queue.qsize()}, x轴最小值{self.x_rolling[0] if len(self.x_rolling) > 0 else None}，x轴长度：{len(self.x_rolling)}，tagid数量：{len(self.tag_id_set)}')
+
     def recive_gui_data_thread(self):
         logger.info(f'处理tof gui数据线程启动')
         gui_queue = Tof2011Widght.gui_queue
         while True:
-            pkgs = np.array(gui_queue.get())
-            while not gui_queue.empty() and len(pkgs) < 500:
-                pkgs = np.vstack((pkgs, gui_queue.get(block=True)))
+            pkgs = gui_queue.get()
+            while not gui_queue.empty() and len(pkgs) < 1000:
+                pkgs += gui_queue.get(block=False)
+                QApplication.processEvents()
+            pkgs = np.array(pkgs)
+            if len(pkgs) == 0:
+              continue
             # 剔除滚码小于当前x轴最小值的数据
             min_rolling = self.x_rolling[0] if len(self.x_rolling) > 0 else 0
             pkgs = pkgs[pkgs[:, 0] > min_rolling]
             if len(pkgs) == 0:
                 continue
 
+            # QApplication.processEvents()
             # 处理突变
             # if len(self.gui_data) > 0:
             #     rolling_data = pkgs[:, 0]
@@ -217,55 +247,36 @@ class Tof2011Widght(QWidget):
             #     if len(less_than_1000_indices) > 0:
             #         min_val = np.min(rolling_data[less_than_1000_indices])
             #         rolling_data[less_than_1000_indices] += (max_rolling - min_val + 1)
-                    # pkgs[:, 0] = rolling_data
+                # pkgs[:, 0] = rolling_data
 
             self.gui_data = np.vstack((self.gui_data, pkgs)) if len(self.gui_data) > 0 else pkgs
             self.gui_data = self.gui_data[np.argsort(self.gui_data[:, 0])][-5000:]  # 按照滚码排序
 
             # 每3秒更新下拉列表
             if self.cur_tag_id is None or time.time() - self.last_update_tagid_time > 5:
-                if self.cur_tag_id is None:
-                    self.cur_tag_id = pkgs[0][2]
+                with self.lock:
+                    need_emit = self.cur_tag_id is None
+                    if self.cur_tag_id is None:
+                        self.cur_tag_id = pkgs[0][2]
 
-                tag_id_set = set(self.gui_data[:, 2])
-                if self.cur_tag_id:
-                    tag_id_set.add(self.cur_tag_id)
+                    self.tag_id_set = set(self.gui_data[:, 2])
+                    if self.cur_tag_id:
+                        self.tag_id_set.add(self.cur_tag_id)
 
-                # 关联每个tagid对应的anchorid列表
-                self.tagid2anchorid = {elem: np.take(self.gui_data[:, 1], np.where(self.gui_data[:, 2] == elem)[0].tolist()) for
-                                       elem in tag_id_set}
-                if not self.cur_anchor_id:
-                    self.cur_anchor_id = {
-                        self.tagid2anchorid[self.cur_tag_id][0]}
+                    # 关联每个tagid对应的anchorid列表
+                    self.tagid2anchorid = {elem: np.take(self.gui_data[:, 1], np.where(self.gui_data[:, 2] == elem)[0].tolist()) for
+                                           elem in self.tag_id_set}
+                    if not self.cur_anchor_id:
+                        self.cur_anchor_id = {self.tagid2anchorid[self.cur_tag_id][0]}
 
-                anchorid_set = set(self.tagid2anchorid[self.cur_tag_id]) | set(
-                    self.cur_anchor_id)
-
-                self.tag_id_combox.blockSignals(True)
-                self.tag_id_combox.clear()
-                self.tag_id_combox.addItems(
-                    list(map(lambda x: str(x), sorted(tag_id_set))))
-                self.tag_id_combox.setCurrentText(str(self.cur_tag_id))
-                self.tag_id_combox.blockSignals(False)
-                self.anchor_id_combox.blockSignals(True)
-                self.anchor_id_combox.clear()
-                self.anchor_id_combox.addCheckableItems(anchorid_set)
-                self.anchor_id_combox.select_items(self.cur_anchor_id)
-                self.anchor_id_combox.blockSignals(False)
-
-                self.last_update_tagid_time = time.time()
-                logger.info(
-                    f'tof显示数据队列积压：{gui_queue.qsize()}, x轴最小值{self.x_rolling[0] if len(self.x_rolling) > 0 else None}，x轴长度：{len(self.x_rolling)}，tagid数量：{len(tag_id_set)}')
-
+                    if need_emit:
+                        self.update_combox_signal.emit()
             self.generate_distance_data_curve(pkgs, True)
+      
 
     def timeout_plot(self):
         for anchorid, distance_line in self.plot_distance.items():
-            # if 'line' not in distance_line:
-            #     logger.error(f'no distance data {distance_line}')
-            #     continue
-            distance_line['line'].setData(
-                distance_line['x'].tolist(), distance_line['y'].tolist())  # 重新绘制
+            distance_line['line'].setData(distance_line['x'].tolist(), distance_line['y'].tolist())  # 重新绘制
 
         if len(self.plot_distance) == 1:  # anchordid选择数量为1时候才显示rxl、fpl
             self.plot_rxl.setData(

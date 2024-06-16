@@ -41,7 +41,7 @@ signal.signal(signal.SIGINT, signal_handler)
 if __name__ == '__main__':
     global uwb
     # freeze_support()
-    uwb = Uwb(Sensor300dWidght.gui_queue, Tof2011Widght.gui_queue)
+    uwb = Uwb()
     # signal.signal(signal.SIGINT, lambda sig, frame: on_app_exit(uwb))
     # signal.signal(signal.SIGINT, lambda sig, frame: on_app_exit(uwb))
 

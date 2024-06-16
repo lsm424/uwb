@@ -44,15 +44,11 @@ class Access:
                 buffer[src] = np.zeros((0,), np.uint8)
             d = np.concatenate([buffer[src], np.frombuffer(data, np.uint8)])
             # 找帧头
-            headerPos = np.where(np.logical_and(
-                d[:-5] == 0xF5, d[1:-4] == 0x5a))[0]
-            lengths = d[headerPos + 2] + \
-                (d[headerPos + 3].astype(np.uint16) << 8)
+            headerPos = np.where(np.logical_and(d[:-5] == 0xF5, d[1:-4] == 0x5a))[0]
+            lengths = d[headerPos + 2] + (d[headerPos + 3].astype(np.uint16) << 8)
             tailPos = headerPos + lengths + 4
-            types = d[headerPos + 4] + \
-                (d[headerPos + 5].astype(np.uint16) << 8)
-            validFrames = np.logical_and(np.logical_and(
-                tailPos < len(d), lengths < 4096), np.isin(types, Tlv.TYPES))
+            types = d[headerPos + 4] + (d[headerPos + 5].astype(np.uint16) << 8)
+            validFrames = np.logical_and(np.logical_and(tailPos < len(d), lengths < 4096), np.isin(types, Tlv.TYPES))
             headerPos = headerPos[validFrames]
             if len(headerPos) == 0:
                 buffer[src] = d

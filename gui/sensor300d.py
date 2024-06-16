@@ -1,7 +1,7 @@
 import threading
 import time
 import queue
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QTimer, Signal
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QComboBox, QLabel, QLineEdit
 import pyqtgraph as pg
 import math
@@ -14,13 +14,13 @@ from uwb.tof_2011 import Tof2011
 class Sensor300dWidght(QWidget):
 
     gui_queue = Queue()
-
+    update_combox_signal = Signal()
     def __init__(self):
         super().__init__()
         self.lock = threading.Lock()
         self.gui_data = []
         self.x_range = 50
-
+        self.tag_id_set = set()
         self.main_layout = QVBoxLayout(self)
         up_layout = QHBoxLayout()
 
@@ -138,6 +138,11 @@ class Sensor300dWidght(QWidget):
         self.timer.timeout.connect(self.timeout_plot)
         self.timer.start(300)
 
+        self.update_combox_timer = QTimer(self)
+        self.update_combox_timer.timeout.connect(self.update_combox)
+        self.update_combox_timer.start(5000)
+        self.update_combox_signal.connect(self.update_combox)
+
     def tagid_selection_changed(self, index):
         try:
             cur_tag_id = self.tag_id_combox.currentText()
@@ -169,6 +174,16 @@ class Sensor300dWidght(QWidget):
         except BaseException as e:
             logger.error(f'error: {e}')
 
+    def update_combox(self):
+        self.tag_id_combox.blockSignals(True)
+        self.tag_id_combox.clear()
+        self.tag_id_combox.addItems(list(map(lambda x: str(x), sorted(self.tag_id_set))))
+        self.tag_id_combox.setCurrentText(str(self.cur_tag_id))
+        self.tag_id_combox.blockSignals(False)
+        self.last_update_tagid_time = time.time()
+        logger.info(f'传感器显示数据队列积压：{Sensor300dWidght.gui_queue.qsize()}, x轴范围{self.x_rolling[0] if self.x_rolling else None}-{self.x_rolling[-1] if self.x_rolling else None}，x轴长度：{len(self.x_rolling)}，tagid数量：{len(self.tag_id_set)}')
+
+
     def recive_gui_data_thread(self):
         try:
             logger.info(f'处理传感器gui数据线程启动')
@@ -190,22 +205,17 @@ class Sensor300dWidght(QWidget):
 
                 # 每3秒更新下拉列表
                 if self.cur_tag_id is None or time.time() - self.last_update_tagid_time > 5:
+                    need_emit = self.cur_tag_id is None
                     if self.cur_tag_id is None:
                         self.cur_tag_id = pkgs[0][1]
 
                     gui_data_zip = list(zip(*self.gui_data))
-                    tag_id_set = set(gui_data_zip[1])
+                    self.tag_id_set = set(gui_data_zip[1])
                     if self.cur_tag_id:
-                        tag_id_set.add(self.cur_tag_id)
+                        self.tag_id_set.add(self.cur_tag_id)
 
-                    self.tag_id_combox.blockSignals(True)
-                    self.tag_id_combox.clear()
-                    self.tag_id_combox.addItems(list(map(lambda x: str(x), sorted(tag_id_set))))
-                    self.tag_id_combox.setCurrentText(str(self.cur_tag_id))
-                    self.tag_id_combox.blockSignals(False)
-                    self.last_update_tagid_time = time.time()
-                    logger.info(
-                        f'传感器显示数据队列积压：{gui_queue.qsize()}, x轴范围{self.x_rolling[0] if self.x_rolling else None}-{self.x_rolling[-1] if self.x_rolling else None}，x轴长度：{len(self.x_rolling)}，tagid数量：{len(tag_id_set)}')
+                    if need_emit:
+                        self.update_combox_signal.emit()
 
                 # 筛选当前tagid的数据用于显示
                 show_pkgs = list(filter(lambda x: x[1] == self.cur_tag_id and x[0] not in self.x_rolling, pkgs))

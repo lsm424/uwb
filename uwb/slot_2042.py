@@ -28,11 +28,9 @@ class Slot2042:
     @staticmethod
     def init(out_file_dir):
         Slot2042.NAME = os.path.join(out_file_dir, '时隙占用表数据上传')
-        Slot2042.csv_file = open(
-            f'{Slot2042.NAME}.csv', 'a', newline='', encoding='utf-8')
+        Slot2042.csv_file = open(f'{Slot2042.NAME}.csv', 'a', newline='', encoding='utf-8')
         Slot2042.writer = csv.writer(Slot2042.csv_file)
-        Slot2042.t = threading.Thread(target=save, args=(
-            Slot2042.writer, Slot2042.save_queue, Slot2042.csv_file), daemon=True)
+        Slot2042.t = threading.Thread(target=save, args=(Slot2042.writer, Slot2042.save_queue, Slot2042.csv_file), daemon=True)
         Slot2042.t.start()
         header = get_header(f'{Slot2042.NAME}.csv')
         if not header:

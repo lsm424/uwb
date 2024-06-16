@@ -14,4 +14,4 @@ serial:
 # 并行提取测量值的子进程数量
 parase_worker_cnt: 6
 
-gui: false
+gui: true

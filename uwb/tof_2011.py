@@ -30,11 +30,9 @@ class Tof2011:
     @staticmethod
     def init(out_file_dir):
         Tof2011.NAME = os.path.join(out_file_dir, 'TOF距离集中上传')
-        Tof2011.csv_file = open(
-            f'{Tof2011.NAME}.csv', 'a', newline='', encoding='utf-8')
+        Tof2011.csv_file = open(f'{Tof2011.NAME}.csv', 'a', newline='', encoding='utf-8')
         Tof2011.writer = csv.writer(Tof2011.csv_file)
-        Tof2011.t = threading.Thread(target=save, args=(
-            Tof2011.writer, Tof2011.save_queue, Tof2011.csv_file), daemon=True)
+        Tof2011.t = threading.Thread(target=save, args=(Tof2011.writer, Tof2011.save_queue, Tof2011.csv_file), daemon=True)
         Tof2011.t.start()
         header = get_header(f'{Tof2011.NAME}.csv')
         if not header:
@@ -59,8 +57,7 @@ class Tof2011:
         else:
             Tof2011.history_data[rolling] = {tag_id: {anchorid}}
         Tof2011.history_data[rolling]['timestamp'] = time()
-        Tof2011.history_data = {rolling: value for rolling, value in Tof2011.history_data.items(
-        ) if value['timestamp'] > (time() - 60)}
+        Tof2011.history_data = {rolling: value for rolling, value in Tof2011.history_data.items() if value['timestamp'] > (time() - 60)}
         return False
 
     # 删除过期的历史数据
