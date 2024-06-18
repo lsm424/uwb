@@ -105,37 +105,35 @@ class Tof2011Widght(QWidget):
         self.update_combox_signal.connect(self.update_combox)
 
     def tagid_selection_changed(self, index):
-        try:
-            with self.lock:
-                # 确定当前tag_id
-                cur_tag_id = self.tag_id_combox.currentText()
-                if not cur_tag_id or int(cur_tag_id) == self.cur_tag_id:
-                    return
-                cur_tag_id = int(cur_tag_id)
-                # 找到关联的anchorid
-                anchorid_list = self.tagid2anchorid.get(cur_tag_id, [])
-                if len(anchorid_list) == 0:
-                    logger.warning(f'tof tagid切换{cur_tag_id}时，筛选不到anchorid，准备重新选择tagid')
-                    self.tag_id_combox.removeItem(index)
-                    self.tag_id_combox.setCurrentIndex(0)
-                    return
-                self.cur_tag_id = cur_tag_id
-                cur_anchor_id = set(anchorid_list) & self.cur_anchor_id
-                self.cur_anchor_id = cur_anchor_id if cur_anchor_id else {anchorid_list[0]}
-                self.anchor_id_combox.blockSignals(True)
-                self.anchor_id_combox.clear()
-                self.anchor_id_combox.addCheckableItems(list(map(lambda x: str(x), set(anchorid_list))))
-                self.anchor_id_combox.select_items(list(map(lambda x: str(x), self.cur_anchor_id)))
-                self.anchor_id_combox.blockSignals(False)
+        with self.lock:
+            # 确定当前tag_id
+            cur_tag_id = self.tag_id_combox.currentText()
+            if not cur_tag_id or int(cur_tag_id) == self.cur_tag_id:
+                return
+            cur_tag_id = int(cur_tag_id)
+            # 找到关联的anchorid
+            anchorid_list = self.tagid2anchorid.get(cur_tag_id, [])
+            if len(anchorid_list) == 0:
+                logger.warning(f'tof tagid切换{cur_tag_id}时，筛选不到anchorid，准备重新选择tagid')
+                self.tag_id_combox.removeItem(index)
+                self.tag_id_combox.setCurrentIndex(0)
+                return
+            self.cur_tag_id = cur_tag_id
+            cur_anchor_id = set(anchorid_list) & self.cur_anchor_id
+            self.cur_anchor_id = cur_anchor_id if cur_anchor_id else {anchorid_list[0]}
+            self.anchor_id_combox.blockSignals(True)
+            self.anchor_id_combox.clear()
+            self.anchor_id_combox.addCheckableItems(list(map(lambda x: str(x), set(anchorid_list))))
+            self.anchor_id_combox.select_items(list(map(lambda x: str(x), self.cur_anchor_id)))
+            self.anchor_id_combox.blockSignals(False)
 
-                # 更新gui显示数据
-                logger.info(f'tof tagid选择变动：{self.cur_tag_id}, tag数量：{self.tag_id_combox.count()}， 当前：{self.cur_anchor_id}')
-            if not self.generate_distance_data_curve(self.gui_data, False):
-                with self.lock:
-                    self.tag_id_combox.removeItem(index)
-                    self.tag_id_combox.setCurrentIndex(0)
-        except BaseException as e:
-            logger.error(f'er: {e}')
+            # 更新gui显示数据
+            logger.info(f'tof tagid选择变动：{self.cur_tag_id}, tag数量：{self.tag_id_combox.count()}， 当前：{self.cur_anchor_id}')
+
+        self.generate_distance_data_curve(self.gui_data, False)
+        if not self.generate_distance_data_curve(self.gui_data, False):
+            self.tag_id_combox.removeItem(index)
+            self.tag_id_combox.setCurrentIndex(0)
 
     def anchorid_selection_changed(self, index):
         with self.lock:
@@ -219,7 +217,8 @@ class Tof2011Widght(QWidget):
         self.anchor_id_combox.blockSignals(False)
 
         self.last_update_tagid_time = time.time()
-        logger.info(f'tof显示数据队列积压：{Tof2011Widght.gui_queue.qsize()}, x轴最小值{self.x_rolling[0] if len(self.x_rolling) > 0 else None}，x轴长度：{len(self.x_rolling)}，tagid数量：{len(self.tag_id_set)}')
+        logger.info(
+            f'tof显示数据队列积压：{Tof2011Widght.gui_queue.qsize()}, x轴最小值{self.x_rolling[0] if len(self.x_rolling) > 0 else None}，x轴长度：{len(self.x_rolling)}，tagid数量：{len(self.tag_id_set)}')
 
     def recive_gui_data_thread(self):
         logger.info(f'处理tof gui数据线程启动')
@@ -231,7 +230,7 @@ class Tof2011Widght(QWidget):
                 QApplication.processEvents()
             pkgs = np.array(pkgs)
             if len(pkgs) == 0:
-              continue
+                continue
             # 剔除滚码小于当前x轴最小值的数据
             min_rolling = self.x_rolling[0] if len(self.x_rolling) > 0 else 0
             pkgs = pkgs[pkgs[:, 0] > min_rolling]
@@ -272,7 +271,6 @@ class Tof2011Widght(QWidget):
                     if need_emit:
                         self.update_combox_signal.emit()
             self.generate_distance_data_curve(pkgs, True)
-      
 
     def timeout_plot(self):
         for anchorid, distance_line in self.plot_distance.items():

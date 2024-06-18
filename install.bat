@@ -1,7 +1,7 @@
 
 # pyinstaller.exe .\main.spec --noconfirm
 # copy .\config.yaml .\dist\uwb
-pyinstaller --hidden-import=access --hidden-import=uwb --hidden-import=common --hidden-import=gui main.py
+pyinstaller --hidden-import=access --hidden-import=uwb --hidden-import=common --hidden-import=gui -F main.py
 
 
 # pip install nuitka zstandard

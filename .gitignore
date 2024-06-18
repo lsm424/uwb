@@ -13,3 +13,4 @@ Pipfile
 *.exe
 .vscode
 uwb.dat
+*.7z
