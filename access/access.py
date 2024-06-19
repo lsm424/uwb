@@ -10,19 +10,15 @@ from uwb.TLV import Tlv
 
 
 def rolling_offset(type):
-    if type == 0x300d:
-        return 12
-    else:
-        return 10
+    return 12 if type == 0x300d else 10
 
 
 class Access:
+    _out_queue = queue.Queue()
 
     def __init__(self):
-        self._cache = {}
         self.cnt = 0
-        self._out_queue = queue.Queue()
-
+        self.run = True
         self._t_access = threading.Thread(target=self._run, daemon=True)
         self._t_access.start()
 
@@ -34,12 +30,20 @@ class Access:
     def access_type(self):
         pass
 
+    @abc.abstractmethod
+    def close(self):
+        self.run = False
+        super().close()
+
     # 接收数据线程
     def _run(self):
         logger.info(f'启动{self.access_type()}接收')
         buffer = {}
-        while True:
+        while self.run:
             data, src = self._recive_data()
+            if data is None:
+                logger.warning(f'退出{self.access_type()}接收')
+                break
             if src not in buffer:
                 buffer[src] = np.zeros((0,), np.uint8)
             d = np.concatenate([buffer[src], np.frombuffer(data, np.uint8)])
@@ -60,19 +64,16 @@ class Access:
             offset = headerPos + np.array([rolling_offset(i) for i in types])
             rollings = d[offset] + (d[offset + 1].astype(np.uint16) << 8)
 
-            [self._out_queue.put(Tlv(src, bytes(d[headerPos[i]:tailPos[i]].tobytes(
+            [Access._out_queue.put(Tlv(src, bytes(d[headerPos[i]:tailPos[i]].tobytes(
             )), lengths[i], types[i], rollings[i])) for i in range(len(types))]
             buffer[src] = d[tailPos[-1]:]
             self.cnt += len(types)
 
     def get_data(self):
-        return self._out_queue.get()
+        return Access._out_queue.get()
 
     def qsize(self):
-        return self._out_queue.qsize()
-
-    def raw_queue_size(self):
-        return self._raw_queue.qsize()
+        return Access._out_queue.qsize()
 
 
 def create_access():

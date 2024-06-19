@@ -1,19 +1,28 @@
 import serial
 from access.access import Access
+from common.common import logger
 
 
 class SerialServer(Access):
     def __init__(self, port, baudrate, bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE,
                  stopbits=serial.STOPBITS_ONE):
+        self.port = port
         self.serail = serial.Serial(port=port, baudrate=baudrate, bytesize=bytesize, parity=parity, stopbits=stopbits)
         super().__init__()
 
     def access_type(self):
-        return 'serial'
+        return f'串口 {self.port}'
 
     def _recive_data(self):
-        data, addr = self.serail.readline(), self.serail.port
-        return data, addr
+        try:
+            data, addr = self.serail.read_all(), self.serail.port
+            return data, addr
+        except BaseException as e:
+            return None, None
 
     def reset_port(self):
         pass
+
+    def close(self):
+        self.serail.close()
+        logger.info(f'关闭串口{self.port}')

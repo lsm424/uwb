@@ -71,6 +71,10 @@ class Uwb:
         list(map(lambda x: os.kill(x.pid,  signal.SIGTERM), self.p))
         os.kill(os.getpid(), signal.SIGTERM)
 
+    def reset_access(self):
+        self.access.close()
+        self.access = create_access()
+
     def statistic(self):
         while True:
             logger.info(f'解析tlv速度：{int(self.access.cnt / 3)}/s, 待汇聚队列积压: {self.access.qsize()}, 解析测量值队列积压: {sum(map(lambda x: x.qsize(), self.parase_queue))}, 待序列化文件队列积压: {self._save_queue.qsize()}，已写入pickle_data：{self.pickle_cnt}条, sensor队列积压：{Sensor300d.save_queue.qsize()}, tof队列积压：{Tof2011.save_queue.qsize()}, cir队列积压：{Cir2121.save_queue.qsize()}, slot队列积压：{Slot2042.save_queue.qsize()}, Tod队列积压：{Tod4090.save_queue.qsize()}, dbsize: {len(self.cache)}')
@@ -108,7 +112,7 @@ class Uwb:
             rows = self.cache('timestamp') < (time() - 0.5)
             list(map(lambda x: (self.parase_queue[x['rolling'] % config['parase_worker_cnt']].put(x['tlv_list']),
                                 self.cache.delete(x)), rows))
-                # logger.warning(f'汇聚1包tlv {tlv.rolling}，已经积累{len(ret[0]["tlv_list"])}包')
+            # logger.warning(f'汇聚1包tlv {tlv.rolling}，已经积累{len(ret[0]["tlv_list"])}包')
 
     @staticmethod
     def parase_tlv_proc(parase_queue, save_queue, sensor_gui_queue, tof_gui_queue, sensor_queue, tof_queue, cir_queue, slot_queue, tod_queue, i):

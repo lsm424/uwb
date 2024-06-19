@@ -14,3 +14,4 @@ Pipfile
 .vscode
 uwb.dat
 *.7z
+*copy.yaml

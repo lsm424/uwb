@@ -35,6 +35,7 @@ def signal_handler(Signal, Frame):
     #     print("uwb退出")
     #     uwb.exit()
 
+
 # 设置信号处理程序
 signal.signal(signal.SIGINT, signal_handler)
 
@@ -53,7 +54,7 @@ if __name__ == '__main__':
         from gui.mainwinow import MainWindow
         app = QApplication(sys.argv)
         app.lastWindowClosed.connect(lambda: on_app_exit(uwb))
-        mainWindow = MainWindow()
+        mainWindow = MainWindow(uwb)
         mainWindow.show()
         sys.exit(app.exec())
     else:
