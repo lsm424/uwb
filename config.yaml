@@ -15,3 +15,6 @@ serial:
 parase_worker_cnt: 6
 
 gui: true
+
+# 滚码最大间隔，超过阈值全部丢弃数据
+rolling_max_interval: 100

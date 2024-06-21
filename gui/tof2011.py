@@ -1,6 +1,7 @@
 import random
 import threading
 import time
+from functools import reduce
 from multiprocessing import Queue
 from PySide6.QtCore import QTimer, QTime, Signal
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QComboBox, QLabel, QApplication
@@ -8,7 +9,7 @@ import pyqtgraph as pg
 import math
 import numpy as np
 
-from common.common import logger
+from common.common import logger, config
 from gui.multicombox import CheckableComboBox
 
 
@@ -202,7 +203,10 @@ class Tof2011Widght(QWidget):
     def update_combox(self):
         if not self.tagid2anchorid:
             return
-        anchorid_set = set(self.tagid2anchorid[self.cur_tag_id]) | set(self.cur_anchor_id)
+        try:
+            anchorid_set = set(self.tagid2anchorid[self.cur_tag_id]) | set(self.cur_anchor_id)
+        except BaseException as e:
+            return
         tag_id_list = list(map(lambda x: str(x), sorted(self.tag_id_set)))
         self.tag_id_combox.blockSignals(True)
         self.tag_id_combox.clear()
@@ -220,6 +224,18 @@ class Tof2011Widght(QWidget):
         logger.info(
             f'tof显示数据队列积压：{Tof2011Widght.gui_queue.qsize()}, x轴最小值{self.x_rolling[0] if len(self.x_rolling) > 0 else None}，x轴长度：{len(self.x_rolling)}，tagid数量：{len(self.tag_id_set)}')
 
+    def reset_check(self, pkgs):
+        in_max_rolling = max(pkgs[:, 0])  # 收到待展示的一批数据的最大滚码
+        with self.lock:
+            if len(self.plot_distance) == 0:
+                return False
+            max_rolling = max(map(lambda x: max(x['x']), self.plot_distance.values()))
+            if max_rolling - in_max_rolling < config['rolling_max_interval']:
+                return False
+            self.gui_data = []
+            self.cur_tag_id = self.cur_anchor_id = None
+            return True
+
     def recive_gui_data_thread(self):
         logger.info(f'处理tof gui数据线程启动')
         gui_queue = Tof2011Widght.gui_queue
@@ -231,12 +247,17 @@ class Tof2011Widght(QWidget):
             pkgs = np.array(pkgs)
             if len(pkgs) == 0:
                 continue
-            # 剔除滚码小于当前x轴最小值的数据
-            min_rolling = self.x_rolling[0] if len(self.x_rolling) > 0 else 0
-            pkgs = pkgs[pkgs[:, 0] > min_rolling]
-            if len(pkgs) == 0:
-                continue
 
+            incr = True
+            if self.reset_check(pkgs):
+                incr = False
+                logger.warning(f'tof gui重新更新')
+            else:
+                # 剔除滚码小于当前x轴最小值的数据
+                min_rolling = self.x_rolling[0] if len(self.x_rolling) > 0 else 0
+                pkgs = pkgs[pkgs[:, 0] > min_rolling]
+                if len(pkgs) == 0:
+                    continue
             # QApplication.processEvents()
             # 处理突变
             # if len(self.gui_data) > 0:
@@ -246,7 +267,7 @@ class Tof2011Widght(QWidget):
             #     if len(less_than_1000_indices) > 0:
             #         min_val = np.min(rolling_data[less_than_1000_indices])
             #         rolling_data[less_than_1000_indices] += (max_rolling - min_val + 1)
-                # pkgs[:, 0] = rolling_data
+            # pkgs[:, 0] = rolling_data
 
             self.gui_data = np.vstack((self.gui_data, pkgs)) if len(self.gui_data) > 0 else pkgs
             self.gui_data = self.gui_data[np.argsort(self.gui_data[:, 0])][-5000:]  # 按照滚码排序
@@ -270,17 +291,15 @@ class Tof2011Widght(QWidget):
 
                     if need_emit:
                         self.update_combox_signal.emit()
-            self.generate_distance_data_curve(pkgs, True)
+            self.generate_distance_data_curve(pkgs, incr)
 
     def timeout_plot(self):
         for anchorid, distance_line in self.plot_distance.items():
             distance_line['line'].setData(distance_line['x'].tolist(), distance_line['y'].tolist())  # 重新绘制
 
         if len(self.plot_distance) == 1:  # anchordid选择数量为1时候才显示rxl、fpl
-            self.plot_rxl.setData(
-                self.x_rolling.tolist(), self.y_rxl.tolist())  # 重新绘制
-            self.plot_fpl.setData(
-                self.x_rolling.tolist(), self.y_fpl.tolist())  # 重新绘制
+            self.plot_rxl.setData(self.x_rolling.tolist(), self.y_rxl.tolist())  # 重新绘制
+            self.plot_fpl.setData(self.x_rolling.tolist(), self.y_fpl.tolist())  # 重新绘制
         else:
             self.plot_rxl.setData([], [])  # 重新绘制
             self.plot_fpl.setData([], [])  # 重新绘制

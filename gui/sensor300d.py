@@ -7,7 +7,7 @@ import pyqtgraph as pg
 import math
 import numpy as np
 from multiprocessing import Queue
-from common.common import logger
+from common.common import logger, config
 from uwb.tof_2011 import Tof2011
 
 
@@ -183,23 +183,37 @@ class Sensor300dWidght(QWidget):
         self.last_update_tagid_time = time.time()
         logger.info(f'传感器显示数据队列积压：{Sensor300dWidght.gui_queue.qsize()}, x轴范围{self.x_rolling[0] if self.x_rolling else None}-{self.x_rolling[-1] if self.x_rolling else None}，x轴长度：{len(self.x_rolling)}，tagid数量：{len(self.tag_id_set)}')
 
-
+    def reset_check(self, pkgs):
+        in_max_rolling = max(list(zip(*pkgs))[0])  # 收到待展示的一批数据的最大滚码
+        if len(self.x_rolling) == 0:
+            return False
+        max_rolling = self.x_rolling[-1]
+        # logger.info(f'in_max_rolling:{in_max_rolling}, max_rolling:{max_rolling}')
+        if max_rolling - in_max_rolling < config['rolling_max_interval']:
+            return False
+        self.gui_data = []
+        self.x_rolling = self.acc_x = self.acc_y = self.acc_z = self.gyr_x = self.gyr_y = self.gyr_z = self.mag_x = self.mag_y = self.mag_z = []
+        logger.warning(f'sensor gui重新更新')
+        return True
+        
     def recive_gui_data_thread(self):
         try:
             logger.info(f'处理传感器gui数据线程启动')
             gui_queue = Sensor300dWidght.gui_queue
             while True:
                 pkgs = gui_queue.get()
-                # logger.info(f'处理传感器gui数据线程启动-收到数据')
                 while not gui_queue.empty() and len(pkgs) < 500:
                     pkgs += gui_queue.get(block=False)
-
-                # 剔除滚码小于当前x轴最小值的数据
-                min_rolling = self.x_rolling[0] if self.x_rolling else 0
-                pkgs = list(filter(lambda x: x[0] > min_rolling, pkgs))
                 if not pkgs:
                     continue
-
+                
+                if not self.reset_check(pkgs):
+                    # 剔除滚码小于当前x轴最小值的数据
+                    min_rolling = self.x_rolling[0] if self.x_rolling else 0
+                    pkgs = list(filter(lambda x: x[0] > min_rolling, pkgs))
+                    if len(pkgs) == 0:
+                        continue
+                      
                 self.gui_data += pkgs
                 self.gui_data = sorted(self.gui_data, key=lambda x: x[0])[-1000:]
 
