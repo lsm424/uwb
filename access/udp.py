@@ -14,7 +14,7 @@ class UdpServer(Access):
 
     def _recive_data(self):
         try:
-            data, addr = self.sock.recvfrom(4096)
+            data, addr = self.sock.recvfrom(65536)
             addr = f'{addr[0]}:{addr[1]}'
             return data, addr
         except BaseException as e:
@@ -26,6 +26,7 @@ class UdpServer(Access):
         if self.port != 0:
             self.sock.close()
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 1000000)
         self.sock.bind(('', port))
         self.port = port
 

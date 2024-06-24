@@ -52,16 +52,15 @@ class Sensor300d:
     # 去重
     @staticmethod
     def deduplication(rolling, tag_id):
+        # Sensor300d.history_data = {rolling: value for rolling, value in Sensor300d.history_data.items() if value['timestampe'] > (time.time() - 5)}
         # with Sensor300d.lock:
         if rolling not in Sensor300d.history_data:
-            Sensor300d.history_data[rolling] = {'tagid': {tag_id}}
-        elif tag_id in Sensor300d.history_data[rolling]['tagid']:
+            Sensor300d.history_data[rolling] = {tag_id}
+        elif tag_id in Sensor300d.history_data[rolling]:
             return True
         else:
-            Sensor300d.history_data[rolling]['tagid'].add(tag_id)
-        Sensor300d.history_data[rolling]['timestampe'] = time.time()
-        Sensor300d.history_data = {rolling: value for rolling, value in Sensor300d.history_data.items(
-        ) if value['timestampe'] > (time.time() - 60)}
+            Sensor300d.history_data[rolling].add(tag_id)
+        # Sensor300d.history_data[rolling]['timestampe'] = time.time()
         return False
 
     # 删除过期的历史数据

@@ -45,6 +45,7 @@ class Tof2011:
     # 去重
     @staticmethod
     def deduplication(rolling, tag_id, anchorid):
+        # Tof2011.history_data = {rolling: value for rolling, value in Tof2011.history_data.items() if value['timestamp'] > (time() - 5)}
         # with Tof2011.lock:
         if rolling in Tof2011.history_data:
             if tag_id in Tof2011.history_data[rolling]:
@@ -56,8 +57,7 @@ class Tof2011:
                 Tof2011.history_data[rolling][tag_id] = {anchorid}
         else:
             Tof2011.history_data[rolling] = {tag_id: {anchorid}}
-        Tof2011.history_data[rolling]['timestamp'] = time()
-        Tof2011.history_data = {rolling: value for rolling, value in Tof2011.history_data.items() if value['timestamp'] > (time() - 60)}
+        # Tof2011.history_data[rolling]['timestamp'] = time()
         return False
 
     # 删除过期的历史数据

@@ -54,7 +54,7 @@ class Uwb:
         self.lock = threading.Lock()
         self.cache = pydblite.Base(':memory:')
         self.cache.create('rolling', 'timestamp', 'tlv_list')
-        self.cache.create_index('rolling', 'timestamp')
+        self.cache.create_index('rolling')
 
         self.threads = []
         # self.threads.append(threading.Thread(
@@ -91,28 +91,28 @@ class Uwb:
 
     # 主流程
     def access_read_thread(self):
-        logger.info(f'启动线程')
+        aggregate_interval = config['aggregate_interval']
+        logger.info(f'启动汇聚线程，interval: {aggregate_interval}')
         while True:
-            # 接收一帧数据
-            tlv = self.access.get_data()
-            # if tlv.proto_type == Cir2121.PROTO_ID:
-            #     tlv = tlv
-            # 汇聚
-            ret = self.cache(rolling=tlv.rolling)
-            if not ret:
-                self.cache.insert(rolling=tlv.rolling, timestamp=time(), tlv_list=[tlv])
-            elif time() - ret[0]['timestamp'] > 0.2:
-                idx = tlv.rolling % config['parase_worker_cnt']
-                self.parase_queue[idx].put(ret[0]['tlv_list'])
-                self.cache.delete(ret[0])
-                # logger.warning(f'完成汇聚滚码{tlv.rolling}，往{idx}号分析进程推送{len(ret[0]["tlv_list"])}包')
-            else:
-                ret[0]['tlv_list'].append(tlv)
-
-            rows = self.cache('timestamp') < (time() - 0.5)
+            rows = self.cache('timestamp') <= (time() - aggregate_interval)
             list(map(lambda x: (self.parase_queue[x['rolling'] % config['parase_worker_cnt']].put(x['tlv_list']),
                                 self.cache.delete(x)), rows))
-            # logger.warning(f'汇聚1包tlv {tlv.rolling}，已经积累{len(ret[0]["tlv_list"])}包')
+
+            # 接收一帧数据
+            try:
+                tlvs = self.access.get_data(timeout=aggregate_interval)
+            except BaseException as e:
+                continue
+            # if tlv.proto_type == Cir2121.PROTO_ID and tlv.rolling == 12297:
+            #     tlv = tlv
+            # 汇聚
+            for tlv in tlvs:
+                ret = self.cache(rolling=tlv.rolling)
+                if not ret:
+                    self.cache.insert(rolling=tlv.rolling, timestamp=time(), tlv_list=[tlv])
+                else:
+                    ret[0]['tlv_list'].append(tlv)
+                    ret[0]['timestamp'] = time()
 
     @staticmethod
     def parase_tlv_proc(parase_queue, save_queue, sensor_gui_queue, tof_gui_queue, sensor_queue, tof_queue, cir_queue, slot_queue, tod_queue, i):
@@ -120,6 +120,9 @@ class Uwb:
         while True:
             tlv_list = parase_queue.get()
             # logger.warning(f'{i} 处理{len(tlv_list)}包tlv')
+
+            Sensor300d.history_data = {}
+            Tof2011.history_data = {}
             tlv_list = list(filter(lambda x: x.result, map(lambda x: x.parase(), tlv_list)))
 
             tof_csv_data, sensor_csv_data, cir_csv_data, slot_csv_data, tod_csv_data, pickle_data = [], [], [], [], [], []
@@ -133,7 +136,7 @@ class Uwb:
                 elif tlv.proto_type == Slot2042.PROTO_ID:
                     slot_csv_data += tlv.result
                 elif tlv.proto_type == Tod4090.PROTO_ID:
-                    slot_csv_data += tlv.result
+                    tod_csv_data += tlv.result
 
                 pickle_data.append(tlv.pickle_data)
 

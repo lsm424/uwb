@@ -39,13 +39,8 @@ class Tof2011Widght(QWidget):
 
         # 顶部下拉框
         self.tag_id_combox = QComboBox()
-        # for i in range(200):
-        #     self.tag_id_combox.addItem(str(i))
-        # self.tag_id_combox.addItem('7767')
-        # self.tag_id_combox.setCurrentText('7767')
         self.tag_id_combox.currentIndexChanged.connect(self.tagid_selection_changed)
         self.anchor_id_combox = CheckableComboBox()
-        # self.anchor_id_combox.addItems(list(map(lambda x: str(x), range(1000))))
         self.anchor_id_combox.view.clicked.connect(self.anchorid_selection_changed)
 
         up_layout = QHBoxLayout()
@@ -228,8 +223,10 @@ class Tof2011Widght(QWidget):
         in_max_rolling = max(pkgs[:, 0])  # 收到待展示的一批数据的最大滚码
         with self.lock:
             if len(self.plot_distance) == 0:
+                logger.warning(f'self.plot_distance=0')
                 return False
             max_rolling = max(map(lambda x: max(x['x']), self.plot_distance.values()))
+            # logger.info(f'in_max_rolling: {in_max_rolling}, max_rolling:{max_rolling}')
             if max_rolling - in_max_rolling < config['rolling_max_interval']:
                 return False
             self.gui_data = []

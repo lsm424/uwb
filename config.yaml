@@ -14,7 +14,10 @@ serial:
 # 并行提取测量值的子进程数量
 parase_worker_cnt: 6
 
-gui: true
+gui: false
 
 # 滚码最大间隔，超过阈值全部丢弃数据
-rolling_max_interval: 100
+rolling_max_interval: 400
+
+# 汇聚间隔
+aggregate_interval: 0.2

@@ -102,8 +102,10 @@ def task_combine(srcQueue,dstQueue):
             del buffer[i]
 def task_recv(srcQueue,destQueues):
     buffer = {}
+    tmp = b''
     while True:
         d,src=srcQueue.get()
+        tmp += d
         if src not in buffer:buffer[src]=np.zeros((0,),np.uint8)
         d=np.concatenate([buffer[src],np.frombuffer(d,np.uint8)])
         # 找帧头
@@ -117,7 +119,13 @@ def task_recv(srcQueue,destQueues):
         
         types = d[headerPos+4]+d[headerPos+5]*256
         offset = headerPos + np.array([rolling_offset(i) for i in types])
+        if len(offset) == 0:
+            buffer[src] = d
+            continue
         rollings = d[offset]+d[offset+1]*256
+        for i in range(len(types)):
+            if types[i] == 0x2121 and rollings[i] == 12297:
+                print(f'{src} 11111111111111111111111')
         frames = [d[headerPos[i]:tailPos[i]] for i in range(len(types))]
         
         buffer[src]=d[tailPos[-1]:]

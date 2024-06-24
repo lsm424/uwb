@@ -4,7 +4,6 @@ import queue
 import threading
 import time
 import numpy as np
-
 from common.common import logger, config
 from uwb.TLV import Tlv
 
@@ -13,8 +12,12 @@ def rolling_offset(type):
     return 12 if type == 0x300d else 10
 
 
+np.zeros((0,), np.uint8)
+
+
 class Access:
     _out_queue = queue.Queue()
+    queue1 = queue.Queue()
 
     def __init__(self):
         self.cnt = 0
@@ -39,6 +42,7 @@ class Access:
     def _run(self):
         logger.info(f'启动{self.access_type()}接收')
         buffer = {}
+        _out_queue = self._out_queue
         while self.run:
             data, src = self._recive_data()
             if data is None:
@@ -60,17 +64,24 @@ class Access:
             tailPos = tailPos[validFrames]
             types = types[validFrames]
             lengths = d[headerPos + 6] + (d[headerPos + 7].astype(np.uint16) << 8)
-
             offset = headerPos + np.array([rolling_offset(i) for i in types])
             rollings = d[offset] + (d[offset + 1].astype(np.uint16) << 8)
-
-            [Access._out_queue.put(Tlv(src, bytes(d[headerPos[i]:tailPos[i]].tobytes(
-            )), lengths[i], types[i], rollings[i])) for i in range(len(types))]
+            # for i in range(len(types)):
+            #     if types[i] == 0x2121 and rollings[i] == 12297:
+            #         logger.info('11111111111111111111111')
+            tlvs = [Tlv(src, bytes(d[headerPos[i]:tailPos[i]].tobytes(
+            )), lengths[i], types[i], rollings[i]) for i in range(len(types))]
+            _out_queue.put(tlvs)
+            # self.queue1.put(tlvs)
+            # self._out_queue.put(tlvs)
+            # list(map(lambda x: Access._out_queue.put(x), tlvs))
+            # [Access._out_queue.put(Tlv(src, bytes(d[headerPos[i]:tailPos[i]].tobytes(
+            # )), lengths[i], types[i], rollings[i])) for i in range(len(types))]
             buffer[src] = d[tailPos[-1]:]
             self.cnt += len(types)
 
-    def get_data(self):
-        return Access._out_queue.get()
+    def get_data(self, timeout=None):
+        return Access._out_queue.get(timeout=timeout)
 
     def qsize(self):
         return Access._out_queue.qsize()
