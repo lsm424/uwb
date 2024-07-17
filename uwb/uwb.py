@@ -15,6 +15,7 @@ from uwb.TLV import Tlv
 import pydblite
 from gui.sensor300d import Sensor300dWidght
 from gui.tof2011 import Tof2011Widght
+from gui.pdoa_raw import PdoaRawWidget
 from uwb.sensor_300d import Sensor300d
 from uwb.tof_2011 import Tof2011
 from uwb.cir_2121 import Cir2121
@@ -33,7 +34,8 @@ class Uwb:
         self.p = []
         for i in range(config['parase_worker_cnt']):
             p = multiprocessing.Process(target=Uwb.parase_tlv_proc, args=(
-                self.parase_queue[i], self._save_queue, Sensor300dWidght.gui_queue, Tof2011Widght.gui_queue, Sensor300d.save_queue, Tof2011.save_queue, Cir2121.save_queue, Slot2042.save_queue, Tod4090.save_queue, i))
+                self.parase_queue[i], self._save_queue, Sensor300dWidght.gui_queue, PdoaRawWidget.gui_queue, Tof2011Widght.gui_queue,
+                Sensor300d.save_queue, Tof2011.save_queue, Cir2121.save_queue, Slot2042.save_queue, Tod4090.save_queue, i))
             p.start()
             self.p.append(p)
 
@@ -115,7 +117,7 @@ class Uwb:
                     ret[0]['timestamp'] = time()
 
     @staticmethod
-    def parase_tlv_proc(parase_queue, save_queue, sensor_gui_queue, tof_gui_queue, sensor_queue, tof_queue, cir_queue, slot_queue, tod_queue, i):
+    def parase_tlv_proc(parase_queue, save_queue, sensor_gui_queue, pdoaraw_gui_queue, tof_gui_queue, sensor_queue, tof_queue, cir_queue, slot_queue, tod_queue, i):
         logger.info(f'启动解析tlv测量值进程{i}, pid:{os.getpid()}')
         while True:
             tlv_list = parase_queue.get()
@@ -143,6 +145,8 @@ class Uwb:
             if config['gui']:
                 sensor_gui_queue.put(sensor_csv_data)
                 tof_gui_queue.put(tof_csv_data)
+                pdoaraw_gui_queue.put(tod_csv_data)
+                # logger.info(f'pdoaraw_gui_queue: {pdoaraw_gui_queue.qsize()}')
             sensor_queue.put(sensor_csv_data)
             tof_queue.put(tof_csv_data)
             cir_queue.put(cir_csv_data)

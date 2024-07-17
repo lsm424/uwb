@@ -1,42 +1,121 @@
 import random
 import threading
 import time
-from functools import reduce
 from multiprocessing import Queue
-from PySide6.QtCore import QTimer, QTime, Signal
+from PySide6.QtCore import QTimer, QTime, Signal, QThread
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QComboBox, QLabel, QApplication
 import pyqtgraph as pg
 import math
+import pandas as pd
 import numpy as np
 
 from common.common import logger, config
 from gui.multicombox import CheckableComboBox
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+
+# pdoa原始数据
 
 
-pg.setConfigOptions(leftButtonPan=True, antialias=True)  # 允许鼠标左键拖动画面，并启用抗锯齿
-pg.setConfigOption('background', 'w')  # 初始的背景(白)
+# 定义一个 QThread 子类
+class WorkerThread(QThread):
+    def __init__(self, pdoa_raw):
+        super().__init__()
+        self.pdoa_raw = pdoa_raw
+
+    def run(self):
+        self.pdoa_raw.run()
 
 
-class Tof2011Widght(QWidget):
+class RealTimePlot(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.initUI()
+
+    def initUI(self):
+        self.layout = QVBoxLayout(self)
+
+        # 创建一个 Figure 对象
+        self.figure = Figure()
+
+        # 创建一个 FigureCanvas 用于显示 Figure
+        self.canvas = FigureCanvas(self.figure)
+        self.layout.addWidget(self.canvas)
+
+        # 初始化数据
+        self.x_data = []
+        self.y_data = []
+        self.y2_data = []
+        # 在 Figure 上添加一个子图
+        self.figure.subplots(2, 1, gridspec_kw={'hspace': 0.5})
+        # 获取两个子图对象
+        self.ax = self.figure.axes[0]
+        self.ax.grid()
+        self.ax.set_title('tdoa')
+
+        self.lines = list(map(lambda x: self.ax.plot([], [])[0], range(4)))
+        # self.ax2 = self.figure.add_subplot(211)
+        self.ax2 = self.figure.axes[1]
+        self.ax2.grid()
+        self.ax2.set_title('pdoa')
+        self.lines2 = list(map(lambda x: self.ax2.plot([], [])[0], range(4)))
+
+        # 定时器，每隔一段时间更新图表
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.update_plot)
+        self.timer.start(300)  # 每1000毫秒（1秒）更新一次
+
+    def update_plot(self):
+        # 模拟数据更新
+        if not self.x_data:
+            return
+        # self.x_data.append(len(self.x_data) + 1)
+        # self.y_data.append([random.randint(0, 10), random.randint(0, 10), random.randint(0, 10), random.randint(0, 10)])
+        # self.y2_data.append([random.randint(0, 10), random.randint(0, 10), random.randint(0, 10), random.randint(0, 10)])
+        # for i in range(len(self.y_data)):
+        #     self.y_data[i].append(random.randint(0, 10))
+
+        y_data = list(zip(*self.y_data))
+        # 更新每条曲线的数据
+        for i, y in enumerate(y_data):
+            self.lines[i].set_xdata(self.x_data)
+            self.lines[i].set_ydata(y)
+
+        y_data = list(zip(*self.y2_data))
+        for i, y in enumerate(y_data):
+            self.lines2[i].set_xdata(self.x_data)
+            self.lines2[i].set_ydata(y)
+
+        # 自动调整坐标轴范围
+        self.ax.relim()
+        self.ax.autoscale_view()
+
+        self.ax2.relim()
+        self.ax2.autoscale_view()
+        # 刷新画布
+        self.canvas.draw()
+
+
+class PdoaRawWidget(QWidget):
 
     gui_queue = Queue()
     update_combox_signal = Signal()
 
     def __init__(self):
         super().__init__()
-
         self.lock = threading.Lock()
         self.last_update_tagid_time = 0
         self.gui_data = []
         self.tagid2anchorid = {}
         self.cur_tag_id = None
         self.cur_anchor_id = set()
-        self.x_range = 200
-        self.x_rolling = np.array([])
-        self.y_rxl = np.array([])
-        self.y_fpl = np.array([])
+        self.x_data = []
+        self.y_data = []
+        self.rolling_all = np.array([])
+        self.y_tdoa_all = np.array([])
+        self.y_pdoa_all = np.array([])
         self.main_layout = QVBoxLayout(self)
-
+        self.main_layout.addSpacing(10)
         # 顶部下拉框
         self.tag_id_combox = QComboBox()
         self.tag_id_combox.currentIndexChanged.connect(self.tagid_selection_changed)
@@ -53,46 +132,11 @@ class Tof2011Widght(QWidget):
         up_layout.addSpacing(100)
         self.main_layout.addLayout(up_layout)
 
-        self.pw1 = pg.PlotWidget(self)  # 图1
-        self.pw1.setMouseEnabled(x=False, y=False)  # 失能x,y轴控制
-        self.pw1.showGrid(x=True, y=True)  # 显示网格
-        self.pw1.setLabel('left', "distance")  # 设置Y轴标签
-        self.pw1.setLabel('bottom', "rolling")  # 设置X轴标签
-        self.plot_distance = {}
-        self.main_layout.addWidget(self.pw1, 2)
-        # 创建一个图例
-        self.legend = pg.LegendItem(offset=(70, 20))
-        self.legend.setParentItem(self.pw1.graphicsItem())
-        self.legend.setAutoFillBackground(True)
+        self.real_time_plot = RealTimePlot()
+        self.main_layout.addWidget(self.real_time_plot)
 
-        self.pw2 = pg.PlotWidget(self)  # 图2
-        self.pw2.setMouseEnabled(x=False, y=False)  # 失能x,y轴控制
-        self.pw2.showGrid(x=True, y=True)  # 显示网格
-        self.pw2.setLabel('left', "rxl/fpl")  # 设置Y轴标签
-        self.pw2.setLabel('bottom', "rolling")  # 设置X轴标签
-        self.plot_fpl = self.pw2.plot(self.x_rolling, self.y_fpl, pen=pg.mkPen(color=(100, 0, 0), width=3),
-                                      symbol='o', symbolBrush='r', name='fpl', symbolSize=5)
-        self.plot_rxl = self.pw2.plot(self.x_rolling, self.y_rxl, pen=pg.mkPen(color=(0, 0, 100), width=3),
-                                      symbol='o', symbolBrush='b', name='rxl', symbolSize=5)
-        # 创建一个图例
-        legend = pg.LegendItem(offset=(60, 20))
-        legend.setParentItem(self.pw2.graphicsItem())
-        legend.setAutoFillBackground(True)
-        # 将图例项添加到图例中
-        for item in self.pw2.items():
-            if isinstance(item, pg.PlotDataItem):
-                name = item.opts['name']
-                # color = item.opts['pen'].color().name()
-                legend.addItem(item, name=name)
-        self.main_layout.addWidget(self.pw2, 1)
-
-        self.t = threading.Thread(
-            target=self.recive_gui_data_thread, daemon=True)
-        self.t.start()
-
-        self.timer = QTimer(self)
-        self.timer.timeout.connect(self.timeout_plot)
-        self.timer.start(300)
+        self.work_thread = WorkerThread(self)
+        self.work_thread.start()
 
         self.update_combox_timer = QTimer(self)
         self.update_combox_timer.timeout.connect(self.update_combox)
@@ -115,8 +159,8 @@ class Tof2011Widght(QWidget):
                 self.tag_id_combox.setCurrentIndex(0)
                 return
             self.cur_tag_id = cur_tag_id
-            cur_anchor_id = set(anchorid_list) & self.cur_anchor_id
-            self.cur_anchor_id = cur_anchor_id if cur_anchor_id else {anchorid_list[0]}
+            # cur_anchor_id = set(anchorid_list) & self.cur_anchor_id
+            self.cur_anchor_id = anchorid_list[:4]
             self.anchor_id_combox.blockSignals(True)
             self.anchor_id_combox.clear()
             self.anchor_id_combox.addCheckableItems(list(map(lambda x: str(x), set(anchorid_list))))
@@ -127,9 +171,6 @@ class Tof2011Widght(QWidget):
             logger.info(f'tof tagid选择变动：{self.cur_tag_id}, tag数量：{self.tag_id_combox.count()}， 当前：{self.cur_anchor_id}')
 
         self.generate_distance_data_curve(self.gui_data, False)
-        if not self.generate_distance_data_curve(self.gui_data, False):
-            self.tag_id_combox.removeItem(index)
-            self.tag_id_combox.setCurrentIndex(0)
 
     def anchorid_selection_changed(self, index):
         with self.lock:
@@ -142,64 +183,29 @@ class Tof2011Widght(QWidget):
 
     def generate_distance_data_curve(self, pkgs, incr=True):
         with self.lock:
-            if not self.cur_anchor_id:
+            if not self.cur_anchor_id or len(self.cur_anchor_id) != 4:
+                logger.info(f'pdoa 计算曲线 要4个anchorid，目前为：{self.cur_anchor_id}')
                 return False
 
-            if len(self.plot_distance) == 0:
-                incr = False
-
-            for x in self.cur_anchor_id:
-                show_pkgs = pkgs[np.logical_and(pkgs[:, 1] == x, pkgs[:, 2] == self.cur_tag_id)]
-                if len(show_pkgs) == 0:
-                    continue
-                # 过滤anchorid、tagid的包
-                x_rolling, y_distance, rxl, fpl = show_pkgs[:, 0], show_pkgs[:, 3], show_pkgs[:, 4], show_pkgs[:, 5]
-                if incr:
-                    ori_x_rolling, ori_y_distance = self.plot_distance.get(x, {}).get('x', []), self.plot_distance.get(x, {}).get('y', [])
-                    x_rolling, y_distance = np.concatenate((ori_x_rolling, x_rolling)), np.concatenate((ori_y_distance, y_distance))
-                    x_rolling_idx = np.argsort(x_rolling)
-                    x_rolling, y_distance = x_rolling[x_rolling_idx][-self.x_range:], y_distance[x_rolling_idx][-self.x_range:]
-                    if len(self.cur_anchor_id) == 1:  # 只有一个anchorid，则更新rxl、fpl
-                        self.x_rolling, self.y_rxl, self.y_fpl = (x_rolling, np.concatenate((self.y_rxl, rxl))[x_rolling_idx][-self.x_range:],
-                                                                  np.concatenate((self.y_fpl, fpl))[x_rolling_idx][-self.x_range:])
-                else:
-                    if len(self.cur_anchor_id) == 1:
-                        self.x_rolling, self.y_rxl, self.y_fpl = x_rolling[-self.x_range:], rxl[-self.x_range:], fpl[-self.x_range:]
-                    x_rolling, y_distance = (x_rolling[-self.x_range:], y_distance[-self.x_range:])
-
-                if 'line' not in self.plot_distance.get(x, {}):
-                    ploter = self.pw1.plot(x_rolling, y_distance, pen=pg.mkPen(color=random.randint(0, 0xffffff) | 0xff00, width=3),
-                                           symbol='o', symbolBrush='b', name=str(x), symbolSize=5)
-                    logger.warning(f'生成曲线 {x} {list(self.plot_distance.keys())} {incr}')
-                else:
-                    ploter = self.plot_distance[x]['line']
-
-                self.plot_distance.update({x: {
-                    'line': ploter,
-                    'x': x_rolling,
-                    'y': y_distance,
-                }})
-            self.plot_distance = {
-                k: v for k, v in self.plot_distance.items() if k in self.cur_anchor_id}
-            # 同步更新图例
-            if not incr or not self.legend.items:
-                self.legend.clear()
-                for k, v in self.plot_distance.items():
-                    self.legend.addItem(v['line'], name=str(k))
-
-                for item in self.pw1.items():
-                    if isinstance(item, pg.PlotDataItem) and int(item.opts['name']) not in self.plot_distance:
-                        item.clear()
-                        self.pw1.removeItem(item)
-                        # legend.addItem(item, name=name)
-                logger.warning(f'全量刷新tof，图例数量：{len(self.legend.items)} anchcor_id: {self.cur_anchor_id}, plot_distance: {self.plot_distance.keys()}')
-            return len(self.plot_distance) != 0
+            pkgs.to_csv('test.csv', index=False)
+            resu = pkgs.groupby(by='rolling').apply(lambda x: self.show(x)).sort_index()[-config['pdoa_raw']['dispBufferSize']:]
+            y_pdoa_all, y_tdoa_all = list(zip(*resu.values))
+            y_tdoa_all = np.concatenate(y_tdoa_all, 0)
+            y_pdoa_all = np.concatenate(y_pdoa_all, 0)
+            PDOA_ang_all = np.zeros(y_pdoa_all.shape) + np.nan
+            for i in range(1, len(self.cur_anchor_id)):
+                PDOA_ang_all[np.isfinite(y_pdoa_all[:, i]), i] = np.unwrap(np.angle(y_pdoa_all[np.isfinite(y_pdoa_all[:, i]), i]), axis=0)
+            self.rolling_all, self.y_tdoa_all, self.y_pdoa_all = resu.keys(), y_tdoa_all, PDOA_ang_all
+            self.real_time_plot.x_data, self.real_time_plot.y_data, self.real_time_plot.y2_data = self.rolling_all.to_list(), self.y_tdoa_all, self.y_pdoa_all
+            logger.info(f'生成pdoa_raw曲线 x: {self.rolling_all} y_tdoa_all：{self.y_tdoa_all} y_pdoa_all：{self.y_pdoa_all}')
+            self.gui_data = self.gui_data[self.gui_data['rolling'] >= resu.index[0]]
+            return True
 
     def update_combox(self):
         if not self.tagid2anchorid:
             return
         try:
-            anchorid_set = set(self.tagid2anchorid[self.cur_tag_id]) | set(self.cur_anchor_id)
+            anchorid_set = sorted(set(self.tagid2anchorid[self.cur_tag_id]) | set(self.cur_anchor_id))
         except BaseException as e:
             return
         tag_id_list = list(map(lambda x: str(x), sorted(self.tag_id_set)))
@@ -215,17 +221,16 @@ class Tof2011Widght(QWidget):
         self.anchor_id_combox.select_items(self.cur_anchor_id)
         self.anchor_id_combox.blockSignals(False)
 
-        self.last_update_tagid_time = time.time()
         logger.info(
-            f'tof显示数据队列积压：{Tof2011Widght.gui_queue.qsize()}, x轴最小值{self.x_rolling[0] if len(self.x_rolling) > 0 else None}，x轴长度：{len(self.x_rolling)}，tagid数量：{len(self.tag_id_set)}')
+            f'pdoa原始显示数据队列积压：{PdoaRawWidget.gui_queue.qsize()}, x轴最小值{self.rolling_all[0] if len(self.rolling_all) > 0 else None}，x轴长度：{len(self.rolling_all)}，tagid数量：{len(self.tag_id_set)}')
 
     def reset_check(self, pkgs):
-        in_max_rolling = max(pkgs[:, 0])  # 收到待展示的一批数据的最大滚码
+        in_max_rolling = max(pkgs['rolling'])  # 收到待展示的一批数据的最大滚码
         with self.lock:
-            if len(self.plot_distance) == 0:
+            if len(self.rolling_all) == 0:
                 logger.warning(f'self.plot_distance=0')
                 return False
-            max_rolling = max(map(lambda x: max(x['x']), self.plot_distance.values()))
+            max_rolling = self.rolling_all[-1]
             # logger.info(f'in_max_rolling: {in_max_rolling}, max_rolling:{max_rolling}')
             if max_rolling - in_max_rolling < config['rolling_max_interval']:
                 return False
@@ -233,70 +238,72 @@ class Tof2011Widght(QWidget):
             self.cur_tag_id = self.cur_anchor_id = None
             return True
 
-    def recive_gui_data_thread(self):
-        logger.info(f'处理tof gui数据线程启动')
-        gui_queue = Tof2011Widght.gui_queue
+    def show(self, dataBuffer):
+        TDOALimit = config['pdoa_raw']['TDOALimit']
+        i = np.array(dataBuffer)
+        cur_anchor_id = list(self.cur_anchor_id)
+        dataslice = np.zeros((len(cur_anchor_id), 6)) + np.nan
+        for j in range(len(cur_anchor_id)):
+            if np.any(np.logical_and(i[:, 1] == cur_anchor_id[j], i[:, 2] == self.cur_tag_id)):
+                dataslice[j, :] = i[np.logical_and(i[:, 1] == cur_anchor_id[j], i[:, 2] == self.cur_tag_id), :]
+        if(np.all(np.logical_not(np.isfinite(dataslice)))):
+            return None, None
+        TOA = dataslice[:, 3]
+        POA_SYNC = dataslice[:, 4]
+        POA_REPLY = dataslice[:, 5]
+        POA_SYNC = np.exp(POA_SYNC*2j*np.pi/256)
+        POA_REPLY = np.exp(POA_REPLY*2j*np.pi/256)
+        TDOA = np.mod(32768 + TOA-TOA[0], 65536)-32768
+        TDOA = TDOA * 3e8/(499.2e6*128)
+        TDOA[abs(TDOA) > TDOALimit] = TDOA[abs(TDOA) > TDOALimit] * TDOALimit/abs(TDOA[abs(TDOA) > TDOALimit])  # 限幅
+        PDOA_SYNC = POA_SYNC*np.conj(POA_SYNC[0])
+        PDOA_REPLY = POA_REPLY*np.conj(POA_REPLY[0])
+        PDOA = PDOA_SYNC+PDOA_REPLY
+        PDOA = PDOA/np.abs(PDOA)
+        return PDOA[None, :], TDOA[None, :]
+
+    def run(self):
+        gui_queue = self.gui_queue
+        logger.info(f'处理pdoa原始数据 gui数据线程启动, {gui_queue.qsize()}')
         while True:
             pkgs = gui_queue.get()
-            while not gui_queue.empty() and len(pkgs) < 1000:
+            while not gui_queue.empty() and len(pkgs) < 10000:
                 pkgs += gui_queue.get(block=False)
                 QApplication.processEvents()
-            pkgs = np.array(pkgs)
+            pkgs = pd.DataFrame(pkgs, columns=['rolling', 'AnchorId', 'TagID', 'TOA', 'POA_SYNC', 'POA_REPLY'])
             if len(pkgs) == 0:
                 continue
 
             incr = True
             if self.reset_check(pkgs):
                 incr = False
-                logger.warning(f'tof gui重新更新')
+                logger.warning(f'pdoa raw gui重新更新')
             else:
                 # 剔除滚码小于当前x轴最小值的数据
-                min_rolling = self.x_rolling[0] if len(self.x_rolling) > 0 else 0
-                pkgs = pkgs[pkgs[:, 0] > min_rolling]
+                min_rolling = self.rolling_all[0] if len(self.rolling_all) > 0 else 0
+                pkgs = pkgs[pkgs['rolling'] > min_rolling]
                 if len(pkgs) == 0:
                     continue
-            # QApplication.processEvents()
-            # 处理突变
-            # if len(self.gui_data) > 0:
-            #     rolling_data = pkgs[:, 0]
-            #     max_rolling = self.gui_data[:, 0][-1]
-            #     less_than_1000_indices = np.where(rolling_data < (max_rolling - 1000))[0]
-            #     if len(less_than_1000_indices) > 0:
-            #         min_val = np.min(rolling_data[less_than_1000_indices])
-            #         rolling_data[less_than_1000_indices] += (max_rolling - min_val + 1)
-            # pkgs[:, 0] = rolling_data
 
-            self.gui_data = np.vstack((self.gui_data, pkgs)) if len(self.gui_data) > 0 else pkgs
-            self.gui_data = self.gui_data[np.argsort(self.gui_data[:, 0])][-5000:]  # 按照滚码排序
+            self.gui_data = pd.concat([self.gui_data, pkgs], axis=0) if len(self.gui_data) > 0 else pkgs
 
             # 每3秒更新下拉列表
             if self.cur_tag_id is None or time.time() - self.last_update_tagid_time > 5:
                 with self.lock:
                     need_emit = self.cur_tag_id is None
                     if self.cur_tag_id is None:
-                        self.cur_tag_id = pkgs[0][2]
+                        self.cur_tag_id = self.gui_data['TagID'][0]
 
-                    self.tag_id_set = set(self.gui_data[:, 2])
+                    self.tag_id_set = set(self.gui_data['TagID'])
                     if self.cur_tag_id:
                         self.tag_id_set.add(self.cur_tag_id)
 
                     # 关联每个tagid对应的anchorid列表
-                    self.tagid2anchorid = {elem: np.take(self.gui_data[:, 1], np.where(self.gui_data[:, 2] == elem)[0].tolist()) for
-                                           elem in self.tag_id_set}
+                    self.tagid2anchorid = {elem: list(set(self.gui_data[self.gui_data['TagID'] == elem]['AnchorId'])) for elem in self.tag_id_set}
                     if not self.cur_anchor_id:
-                        self.cur_anchor_id = {self.tagid2anchorid[self.cur_tag_id][0]}
-
+                        self.cur_anchor_id = set(self.tagid2anchorid[self.cur_tag_id][:4])
+                    logger.info(f'self.tagid2anchorid={self.tagid2anchorid}')
                     if need_emit:
                         self.update_combox_signal.emit()
+                    self.last_update_tagid_time = time.time()
             self.generate_distance_data_curve(pkgs, incr)
-
-    def timeout_plot(self):
-        for anchorid, distance_line in self.plot_distance.items():
-            distance_line['line'].setData(distance_line['x'].tolist(), distance_line['y'].tolist())  # 重新绘制
-
-        if len(self.plot_distance) == 1:  # anchordid选择数量为1时候才显示rxl、fpl
-            self.plot_rxl.setData(self.x_rolling.tolist(), self.y_rxl.tolist())  # 重新绘制
-            self.plot_fpl.setData(self.x_rolling.tolist(), self.y_fpl.tolist())  # 重新绘制
-        else:
-            self.plot_rxl.setData([], [])  # 重新绘制
-            self.plot_fpl.setData([], [])  # 重新绘制

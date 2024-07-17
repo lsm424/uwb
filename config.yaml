@@ -21,3 +21,8 @@ rolling_max_interval: 400
 
 # 汇聚间隔
 aggregate_interval: 0.2
+
+# pdoa原始数据配置
+pdoa_raw:
+  dispBufferSize: 1000
+  TDOALimit: 1
