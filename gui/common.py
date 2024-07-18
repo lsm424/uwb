@@ -1,11 +1,22 @@
 import sys
 
 from PySide6.QtWidgets import QComboBox, QLineEdit, QApplication
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, Signal, QThread
+
+
+# 定义一个 QThread 子类
+class WorkerThread(QThread):
+    def __init__(self, pdoa_raw):
+        super().__init__()
+        self.pdoa_raw = pdoa_raw
+
+    def run(self):
+        self.pdoa_raw.run()
 
 
 class CheckableComboBox(QComboBox):
     select_signal = Signal(list[str])
+
     def __init__(self, parent=None):
         super(CheckableComboBox, self).__init__(parent)
         # QToolTip.setFont(QFont('Times New Roman', 15))  # 设置提示框字体和字号
@@ -22,7 +33,6 @@ class CheckableComboBox(QComboBox):
         item.setFlags(Qt.ItemFlag.ItemIsUserCheckable | Qt.ItemFlag.ItemIsEnabled)
         item.setCheckState(Qt.CheckState.Unchecked)
         item.setToolTip(text)
-
 
     def addCheckableItems(self, texts):
         for text in texts:

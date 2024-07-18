@@ -26,3 +26,14 @@ aggregate_interval: 0.2
 pdoa_raw:
   dispBufferSize: 1000
   TDOALimit: 1
+
+# pdoa角度
+pdoa_angle:
+  dispBufferSize: 1000
+  TDOALimit: 1
+  filtwindow: 10
+  ElectLen: 21.00
+  ZeroPoint: 179.73
+  Anchors: [0x0AFC,0x5B2B,0x08D3,0x7BD3]
+  PhaseOffset: [0,178.99,11.61,-130.48]
+  Freq: 6.5e9

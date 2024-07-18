@@ -75,10 +75,10 @@ class Tof2011:
                                                                                    dtype=np.uint8).reshape((6, -1), order="F")
         tag_id0 = (tag_id0_HI * 256.0 + tag_id0_LO).astype(np.uint16)
         distance = (Distance_HI * 256.0 + Distance_LO).astype(np.uint16)
-        if distance > 49152:
-            distance = (distance - 49125) * 100
-        else:
-            distance = (distance - 32768) * 10
+        distance2 = distance
+        distance2[distance > 32768] = (distance[distance > 32768] - 32768) * 10
+        distance2[distance > 49152] = (distance[distance > 49152] - 49152) * 100
+        distance = distance2
         ret = [N * [rolling], N * [anchor],
                tag_id0.tolist(), distance.tolist(), RXL.tolist(), FPL.tolist()]
 

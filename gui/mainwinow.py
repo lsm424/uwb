@@ -6,6 +6,7 @@ from gui.sensor300d import Sensor300dWidght
 from gui.tof2011 import Tof2011Widght
 from gui.pdoa_correct import PdoaCorrecd
 from gui.pdoa_raw import PdoaRawWidget
+from gui.pdoa_angle import PdoaAgnleWidget
 
 
 class MainWindow(QMainWindow):
@@ -22,6 +23,7 @@ class MainWindow(QMainWindow):
         self.tab_widget.addTab(ConfigWidght(uwb), "配置管理")
         self.tab_widget.addTab(PdoaCorrecd(), "pdoa校准")
         self.tab_widget.addTab(PdoaRawWidget(), "pdoa原始数据")
+        self.tab_widget.addTab(PdoaAgnleWidget(), "pdoa角度数据")
         # 设置中心部件为 QTabWidget
         self.setCentralWidget(self.tab_widget)
         self.resize(1400, 600)

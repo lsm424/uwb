@@ -10,7 +10,7 @@ import math
 import numpy as np
 
 from common.common import logger, config
-from gui.multicombox import CheckableComboBox
+from gui.common import CheckableComboBox
 
 
 pg.setConfigOptions(leftButtonPan=True, antialias=True)  # 允许鼠标左键拖动画面，并启用抗锯齿

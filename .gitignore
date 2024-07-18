@@ -16,3 +16,5 @@ uwb.dat
 *.7z
 *copy.yaml
 *.bin
+*.csv
+test.csv

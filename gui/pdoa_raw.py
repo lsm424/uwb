@@ -2,29 +2,17 @@ import random
 import threading
 import time
 from multiprocessing import Queue
-from PySide6.QtCore import QTimer, QTime, Signal, QThread
+from PySide6.QtCore import QTimer, Signal
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QComboBox, QLabel, QApplication
-import pyqtgraph as pg
-import math
 import pandas as pd
 import numpy as np
 
 from common.common import logger, config
-from gui.multicombox import CheckableComboBox
+from gui.common import *
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 
 # pdoa原始数据
-
-
-# 定义一个 QThread 子类
-class WorkerThread(QThread):
-    def __init__(self, pdoa_raw):
-        super().__init__()
-        self.pdoa_raw = pdoa_raw
-
-    def run(self):
-        self.pdoa_raw.run()
 
 
 class RealTimePlot(QWidget):
@@ -197,7 +185,7 @@ class PdoaRawWidget(QWidget):
                 PDOA_ang_all[np.isfinite(y_pdoa_all[:, i]), i] = np.unwrap(np.angle(y_pdoa_all[np.isfinite(y_pdoa_all[:, i]), i]), axis=0)
             self.rolling_all, self.y_tdoa_all, self.y_pdoa_all = resu.keys(), y_tdoa_all, PDOA_ang_all
             self.real_time_plot.x_data, self.real_time_plot.y_data, self.real_time_plot.y2_data = self.rolling_all.to_list(), self.y_tdoa_all, self.y_pdoa_all
-            logger.info(f'生成pdoa_raw曲线 x: {self.rolling_all} y_tdoa_all：{self.y_tdoa_all} y_pdoa_all：{self.y_pdoa_all}')
+            # logger.info(f'生成pdoa_raw曲线 x: {self.rolling_all} y_tdoa_all：{self.y_tdoa_all} y_pdoa_all：{self.y_pdoa_all}')
             self.gui_data = self.gui_data[self.gui_data['rolling'] >= resu.index[0]]
             return True
 

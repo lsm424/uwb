@@ -10,7 +10,7 @@ import math
 import pandas
 import numpy as np
 from common.common import logger, config
-from gui.multicombox import CheckableComboBox
+from gui.common import CheckableComboBox
 
 
 def plot3(PDOA):
