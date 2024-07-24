@@ -61,7 +61,7 @@ class RealTimePlot(QWidget):
 # pdoa角度数据
 
 
-class PdoaAgnleWidget(QWidget):
+class PdoaAngleWidget(QWidget):
 
     gui_queue = Queue()
     update_combox_signal = Signal()
@@ -166,7 +166,7 @@ class PdoaAgnleWidget(QWidget):
         self.tag_id_combox.blockSignals(False)
 
         logger.info(
-            f'pdoa角度显示数据队列积压：{PdoaAgnleWidget.gui_queue.qsize()}, x轴最小值{self.rolling_all[0] if len(self.rolling_all) > 0 else None}，x轴长度：{len(self.rolling_all)}，tagid数量：{len(self.tag_id_set)}')
+            f'pdoa角度显示数据队列积压：{PdoaAngleWidget.gui_queue.qsize()}, x轴最小值{self.rolling_all[0] if len(self.rolling_all) > 0 else None}，x轴长度：{len(self.rolling_all)}，tagid数量：{len(self.tag_id_set)}')
 
     def reset_check(self, pkgs):
         in_max_rolling = max(pkgs['rolling'])  # 收到待展示的一批数据的最大滚码

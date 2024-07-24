@@ -6,7 +6,8 @@ from collections import defaultdict
 
 
 from common.common import logger
-from uwb.cir_2121 import Cir2121
+# from uwb.cir_2121 import Cir2121
+from uwb.poa_3012 import Poa3012
 from uwb.sensor_300d import Sensor300d
 from uwb.slot_2042 import Slot2042
 from uwb.tod_4090 import Tod4090
@@ -60,7 +61,7 @@ from uwb.tof_2011 import Tof2011
 
 class Tlv:
     PROTO_HANDLER = {
-        Cir2121.PROTO_ID: Cir2121(),
+        Poa3012.PROTO_ID: Poa3012(),
         Slot2042.PROTO_ID: Slot2042(),
         Tod4090.PROTO_ID: Tod4090(),
         Sensor300d.PROTO_ID: Sensor300d(),

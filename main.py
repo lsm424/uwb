@@ -3,8 +3,8 @@ import time
 from common.common import config, logger
 import sys
 from multiprocessing import Process, Queue, freeze_support
-from gui.sensor300d import Sensor300dWidght
-from gui.tof2011 import Tof2011Widght
+from gui.sensor300d import Sensor300dWidget
+from gui.tof2011 import Tof2011Widget
 import signal
 from uwb.uwb import Uwb
 
@@ -48,7 +48,7 @@ if __name__ == '__main__':
 
     if config['gui']:
         # p = Process(target=uwb_run, args=(
-        #     Sensor300dWidght.gui_queue, Tof2011Widght.gui_queue))
+        #     Sensor300dWidget.gui_queue, Tof2011Widget.gui_queue))
         # p.start()
         from PySide6.QtWidgets import QApplication
         from gui.mainwinow import MainWindow

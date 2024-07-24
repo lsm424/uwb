@@ -11,7 +11,7 @@ from common.common import logger, config
 from uwb.tof_2011 import Tof2011
 
 
-class Sensor300dWidght(QWidget):
+class Sensor300dWidget(QWidget):
 
     gui_queue = Queue()
     update_combox_signal = Signal()
@@ -181,7 +181,7 @@ class Sensor300dWidght(QWidget):
         self.tag_id_combox.setCurrentText(str(self.cur_tag_id))
         self.tag_id_combox.blockSignals(False)
         self.last_update_tagid_time = time.time()
-        logger.info(f'传感器显示数据队列积压：{Sensor300dWidght.gui_queue.qsize()}, x轴范围{self.x_rolling[0] if self.x_rolling else None}-{self.x_rolling[-1] if self.x_rolling else None}，x轴长度：{len(self.x_rolling)}，tagid数量：{len(self.tag_id_set)}')
+        logger.info(f'传感器显示数据队列积压：{Sensor300dWidget.gui_queue.qsize()}, x轴范围{self.x_rolling[0] if self.x_rolling else None}-{self.x_rolling[-1] if self.x_rolling else None}，x轴长度：{len(self.x_rolling)}，tagid数量：{len(self.tag_id_set)}')
 
     def reset_check(self, pkgs):
         in_max_rolling = max(list(zip(*pkgs))[0])  # 收到待展示的一批数据的最大滚码
@@ -199,7 +199,7 @@ class Sensor300dWidght(QWidget):
     def recive_gui_data_thread(self):
         try:
             logger.info(f'处理传感器gui数据线程启动')
-            gui_queue = Sensor300dWidght.gui_queue
+            gui_queue = Sensor300dWidget.gui_queue
             while True:
                 pkgs = gui_queue.get()
                 while not gui_queue.empty() and len(pkgs) < 500:
@@ -267,7 +267,7 @@ class Sensor300dWidght(QWidget):
             logger.error(f'eror: {e}')
 
     def timeout_plot(self):
-        # logger.info(f'plot {Sensor300dWidght.gui_queue.qsize()}')
+        # logger.info(f'plot {Sensor300dWidget.gui_queue.qsize()}')
         self.plot_acc_x.setData(self.x_rolling, self.acc_x)
         self.plot_acc_y.setData(self.x_rolling, self.acc_y)
         self.plot_acc_z.setData(self.x_rolling, self.acc_z)

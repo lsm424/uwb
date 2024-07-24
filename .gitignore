@@ -15,6 +15,7 @@ Pipfile
 uwb.dat
 *.7z
 *copy.yaml
+*.rar
 *.bin
 *.csv
 test.csv

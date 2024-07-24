@@ -307,7 +307,7 @@ class WorkerThread(QThread):
         self.finish.emit(text)
 
 
-class PdoaCorrecd(QWidget):
+class PdoaCorrection(QWidget):
 
     update_combox_signal = Signal()
 
