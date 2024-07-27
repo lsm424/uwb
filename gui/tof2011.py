@@ -4,11 +4,11 @@ import time
 from functools import reduce
 from multiprocessing import Queue
 from PySide6.QtCore import QTimer, QTime, Signal
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QComboBox, QLabel, QApplication
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QComboBox, QLabel, QApplication, QTextEdit
 import pyqtgraph as pg
 import math
 import numpy as np
-
+import pandas as pd
 from common.common import logger, config
 from gui.common import CheckableComboBox
 
@@ -85,6 +85,9 @@ class Tof2011Widget(QWidget):
                 # color = item.opts['pen'].color().name()
                 legend.addItem(item, name=name)
         self.main_layout.addWidget(self.pw2, 1)
+
+        self.statistic_textedit = QTextEdit()
+        self.main_layout.addWidget(self.statistic_textedit, 1)
 
         self.t = threading.Thread(
             target=self.recive_gui_data_thread, daemon=True)
@@ -215,7 +218,7 @@ class Tof2011Widget(QWidget):
         self.anchor_id_combox.select_items(self.cur_anchor_id)
         self.anchor_id_combox.blockSignals(False)
 
-        self.last_update_tagid_time = time.time()
+        # self.last_update_tagid_time = time.time()
         logger.info(
             f'tof显示数据队列积压：{Tof2011Widget.gui_queue.qsize()}, x轴最小值{self.x_rolling[0] if len(self.x_rolling) > 0 else None}，x轴长度：{len(self.x_rolling)}，tagid数量：{len(self.tag_id_set)}')
 
@@ -244,7 +247,6 @@ class Tof2011Widget(QWidget):
             pkgs = np.array(pkgs)
             if len(pkgs) == 0:
                 continue
-
             incr = True
             if self.reset_check(pkgs):
                 incr = False
@@ -270,7 +272,7 @@ class Tof2011Widget(QWidget):
             self.gui_data = self.gui_data[np.argsort(self.gui_data[:, 0])][-5000:]  # 按照滚码排序
 
             # 每3秒更新下拉列表
-            if self.cur_tag_id is None or time.time() - self.last_update_tagid_time > 5:
+            if self.cur_tag_id is None or time.time() - self.last_update_tagid_time > 3:
                 with self.lock:
                     need_emit = self.cur_tag_id is None
                     if self.cur_tag_id is None:
@@ -288,11 +290,22 @@ class Tof2011Widget(QWidget):
 
                     if need_emit:
                         self.update_combox_signal.emit()
+                    self.last_update_tagid_time = time.time()
             self.generate_distance_data_curve(pkgs, incr)
 
     def timeout_plot(self):
+        data = {'anchorid': [], '最小值': [], '最大值': [], '中位数': [], '5%': [], '95%': [], '成功率': []}
         for anchorid, distance_line in self.plot_distance.items():
             distance_line['line'].setData(distance_line['x'].tolist(), distance_line['y'].tolist())  # 重新绘制
+            data['anchorid'].append(anchorid)
+            data['最小值'].append(np.min(distance_line['y']))
+            data['最大值'].append(np.max(distance_line['y']))
+            data['中位数'].append(np.median(distance_line['y']))
+            data['5%'].append(np.percentile(distance_line['y'], 5))
+            data['95%'].append(np.percentile(distance_line['y'], 95))
+            data['成功率'].append(str(round(len(distance_line['x']) / (max(distance_line['x']) - min(distance_line['x']) + 1) * 100, 2)) + '%')
+        data = pd.DataFrame(data)
+        self.statistic_textedit.setHtml(data.to_html(index=False))
 
         if len(self.plot_distance) == 1:  # anchordid选择数量为1时候才显示rxl、fpl
             self.plot_rxl.setData(self.x_rolling.tolist(), self.y_rxl.tolist())  # 重新绘制

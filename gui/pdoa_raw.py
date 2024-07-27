@@ -125,6 +125,8 @@ class PdoaRawWidget(QWidget):
 
         self.work_thread = WorkerThread(self)
         self.work_thread.start()
+        # self.t = threading.Thread(target=self.run, daemon=True)
+        # self.t.start()
 
         self.update_combox_timer = QTimer(self)
         self.update_combox_timer.timeout.connect(self.update_combox)
@@ -171,21 +173,37 @@ class PdoaRawWidget(QWidget):
 
     def generate_distance_data_curve(self, pkgs, incr=True):
         with self.lock:
-            if not self.cur_anchor_id or len(self.cur_anchor_id) != 4:
-                logger.info(f'pdoa 计算曲线 要4个anchorid，目前为：{self.cur_anchor_id}')
+            if not self.cur_anchor_id or len(self.cur_anchor_id) < 2:
+                logger.info(f'pdoa 计算曲线 至少要2个anchorid，目前为：{self.cur_anchor_id}')
                 return False
 
-            pkgs.to_csv('test.csv', index=False)
+            # pkgs.to_csv('test.csv', index=False)
             resu = pkgs.groupby(by='rolling').apply(lambda x: self.show(x)).sort_index()[-config['pdoa_raw']['dispBufferSize']:]
-            y_pdoa_all, y_tdoa_all = list(zip(*resu.values))
+            # logger.info(f'resu keys: {resu.keys()}， {set(pkgs["rolling"])}')
+            values = list(filter(lambda x: x[0] is not None and x[1] is not None, resu.values))
+            if not values:
+                return False
+            y_pdoa_all, y_tdoa_all = list(zip(*values))
+
+            # logger.info(f'resu keys: {resu.keys()}')
             y_tdoa_all = np.concatenate(y_tdoa_all, 0)
             y_pdoa_all = np.concatenate(y_pdoa_all, 0)
+
             PDOA_ang_all = np.zeros(y_pdoa_all.shape) + np.nan
             for i in range(1, len(self.cur_anchor_id)):
                 PDOA_ang_all[np.isfinite(y_pdoa_all[:, i]), i] = np.unwrap(np.angle(y_pdoa_all[np.isfinite(y_pdoa_all[:, i]), i]), axis=0)
             self.rolling_all, self.y_tdoa_all, self.y_pdoa_all = resu.keys(), y_tdoa_all, PDOA_ang_all
-            self.real_time_plot.x_data, self.real_time_plot.y_data, self.real_time_plot.y2_data = self.rolling_all.to_list(), self.y_tdoa_all, self.y_pdoa_all
-            # logger.info(f'生成pdoa_raw曲线 x: {self.rolling_all} y_tdoa_all：{self.y_tdoa_all} y_pdoa_all：{self.y_pdoa_all}')
+            # logger.info(f'resu keys: {resu.keys()}')
+            # self.real_time_plot.x_data, self.real_time_plot.y_data, self.real_time_plot.y2_data = self.rolling_all.to_list(), self.y_tdoa_all, self.y_pdoa_all
+            _x_data, _y_data, _y2_data = self.rolling_all.to_list(), self.y_tdoa_all.tolist(), self.y_pdoa_all.tolist()
+            self.real_time_plot.x_data = self.real_time_plot.x_data + _x_data
+            self.real_time_plot.y_data = self.real_time_plot.y_data + _y_data
+            self.real_time_plot.y2_data = self.real_time_plot.y2_data + _y2_data
+            self.real_time_plot.x_data = self.real_time_plot.x_data[-200:]
+            self.real_time_plot.y_data = self.real_time_plot.y_data[-200:]
+            self.real_time_plot.y2_data = self.real_time_plot.y2_data[-200:]
+
+            # logger.info(f'生成pdoa_raw曲线 x: {self.real_time_plot.x_data} y_tdoa_all：{self.real_time_plot.y_data} y_pdoa_all：{self.real_time_plot.y2_data}')
             self.gui_data = self.gui_data[self.gui_data['rolling'] >= resu.index[0]]
             return True
 
@@ -274,9 +292,10 @@ class PdoaRawWidget(QWidget):
                     continue
 
             self.gui_data = pd.concat([self.gui_data, pkgs], axis=0) if len(self.gui_data) > 0 else pkgs
+            # pkgs = self.gui_data = pd.read_csv("TDOA与PDOA集中上传.csv")
 
             # 每3秒更新下拉列表
-            if self.cur_tag_id is None or time.time() - self.last_update_tagid_time > 5:
+            if self.cur_tag_id is None or time.time() - self.last_update_tagid_time > 3:
                 with self.lock:
                     need_emit = self.cur_tag_id is None
                     if self.cur_tag_id is None:

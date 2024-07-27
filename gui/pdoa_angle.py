@@ -134,24 +134,30 @@ class PdoaAngleWidget(QWidget):
 
             pkgs.to_csv('pdoa_agnle_test.csv', index=False)
             resu = pkgs.groupby(by='rolling').apply(lambda x: self.show(x))
-            if len(resu.values) == 0: return False
+            if len(resu.values) == 0:
+                return False
             try:
-                resu = np.concatenate(resu.values, 0)
+                resu1 = np.concatenate(resu.values, 0)
             except BaseException as e:
                 logger.error(f'err: {e}, resu: {resu.values}')
                 return False
-            resu = pd.DataFrame(resu, columns=['tag', 'rolling', 'aoa'])
+            if len(resu1) == 0:
+                logger.info(f'pdoa角度 计算曲线resu为空: {resu1}')
+                return False
+            resu = pd.DataFrame(resu1, columns=['tag', 'rolling', 'aoa'])
             # logger.info(f'resu: {resu}')
             resu = resu.groupby(by='tag')
             min_rolling = 0
             for tag, v in resu:
                 # logger.info(f'tag:{tag}，v: {v}')
                 if tag == self.cur_tag_id:
-                    v = v[-self.dispBufferSize:]
-                    self.real_time_plot.x_data, self.real_time_plot.y_data = v['rolling'], v['aoa']
-                    min_rolling = min(v['rolling'])
+                    self.real_time_plot.x_data = self.real_time_plot.x_data + v['rolling'].tolist()
+                    self.real_time_plot.y_data = self.real_time_plot.y_data + v['aoa'].tolist()
+                    self.real_time_plot.x_data = self.real_time_plot.x_data[-200:]
+                    self.real_time_plot.y_data = self.real_time_plot.y_data[-200:]
+                    min_rolling = min(self.real_time_plot.x_data)
 
-            logger.info(f'生成pdoa_angle曲线 x: {self.real_time_plot.x_data} y_all：{self.real_time_plot.y_data}')
+            # logger.info(f'生成pdoa_angle曲线 x: {self.real_time_plot.x_data} y_all：{self.real_time_plot.y_data}')
             self.gui_data = self.gui_data[self.gui_data['rolling'] >= min_rolling]
             return True
 

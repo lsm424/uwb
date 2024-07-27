@@ -220,7 +220,6 @@ class Poa3012Widget(QWidget):
         self.anchor_id_combox.select_items(self.cur_anchor_id)
         self.anchor_id_combox.blockSignals(False)
 
-        self.last_update_tagid_time = time.time()
         logger.info(
             f'poa3012 显示数据队列积压：{Poa3012Widget.gui_queue.qsize()}, x轴最小值{self.x_rolling[0] if len(self.x_rolling) > 0 else None}，x轴长度：{len(self.x_rolling)}，tagid数量：{len(self.tag_id_set)}')
 
@@ -265,7 +264,7 @@ class Poa3012Widget(QWidget):
             self.gui_data = self.gui_data[np.argsort(self.gui_data[:, 0])][-5000:]  # 按照滚码排序
 
             # 每3秒更新下拉列表
-            if self.cur_tag_id is None or time.time() - self.last_update_tagid_time > 5:
+            if self.cur_tag_id is None or time.time() - self.last_update_tagid_time > 3:
                 with self.lock:
                     need_emit = self.cur_tag_id is None
                     if self.cur_tag_id is None:
@@ -283,6 +282,9 @@ class Poa3012Widget(QWidget):
 
                     if need_emit:
                         self.update_combox_signal.emit()
+                    
+                    self.last_update_tagid_time = time.time()
+
             self.generate_distance_data_curve(pkgs, incr)
 
     def timeout_plot(self):

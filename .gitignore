@@ -19,3 +19,6 @@ uwb.dat
 *.bin
 *.csv
 test.csv
+scripts
+*.png
+*.ipynb

@@ -2,8 +2,8 @@
 access_type: udp
 udp_port: 9999
 serial:
-  port: COM1
-  baudrate: 115200
+  port: COM2
+  baudrate: 460800
   # 5, 6, 7, 8
   bytesize: 8
   # 'N', 'E', 'O', 'M', 'S'
@@ -14,6 +14,7 @@ serial:
 # 并行提取测量值的子进程数量
 parase_worker_cnt: 6
 
+# 是否启动gui
 gui: true
 
 # 滚码最大间隔，超过阈值全部丢弃数据
@@ -32,8 +33,9 @@ pdoa_angle:
   dispBufferSize: 1000
   TDOALimit: 1
   filtwindow: 10
-  ElectLen: 21.00
-  ZeroPoint: 179.73
-  Anchors: [0x0AFC, 0x5B2B, 0x08D3, 0x7BD3]
-  PhaseOffset: [0, 178.99, 11.61, -130.48]
+  ElectLen: 22.00
+  ZeroPoint: -17.84
+  # Anchors: [0x0AFC, 0x5B2B, 0x08D3, 0x7BD3]
+  Anchors: [0x129F, 0x5789, 0x4A2A, 0x30BC]
+  PhaseOffset: [0, -57.04, -16.27, -176.26]
   Freq: 6.5e9

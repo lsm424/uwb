@@ -54,7 +54,7 @@ def save(writer, queue, csv_file):
         if len(pkgs) == 0:
             continue
         writer.writerows(pkgs)
-        if '传感器' in str(csv_file) or 'TOF' in str(csv_file):
-            continue
+        # if '传感器' in str(csv_file) or 'TOF' in str(csv_file):
+        #     continue
         # logger.warning(f'{csv_file} 写文件{len(pkgs)}')
         # csv_file.flush()

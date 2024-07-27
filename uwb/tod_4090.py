@@ -11,8 +11,7 @@ from common.common import get_header, save
 class Tod4090:
     PROTO_ID = 0x4090
     # NAME = os.path.join(out_file_dir, 'TDOA与PDOA集中上传')
-    fieldnames = ['rolling', 'AnchorId',
-                  'TagID', 'TOA', 'POA_SYNC', 'POA_REPLY']
+    fieldnames = ['rolling', 'AnchorId', 'TagID', 'TOA', 'POA_SYNC', 'POA_REPLY']
     # csv_file = open(f'{NAME}.csv', 'a', newline='', encoding='utf-8')
     # writer = csv.writer(csv_file)
     save_queue = multiprocessing.Queue()

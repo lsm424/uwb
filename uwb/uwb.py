@@ -36,20 +36,20 @@ class Uwb:
         self.p = []
         for i in range(config['parase_worker_cnt']):
             p = multiprocessing.Process(target=Uwb.parase_tlv_proc, args=(
-                    self.parase_queue[i], 
-                    self._save_queue, 
-                    Sensor300dWidget.gui_queue, 
-                    PdoaRawWidget.gui_queue, 
-                    PdoaAngleWidget.gui_queue, 
-                    Tof2011Widget.gui_queue,
-                    Poa3012Widget.gui_queue,
-                    Sensor300d.save_queue, 
-                    Tof2011.save_queue, 
-                    Poa3012.save_queue, 
-                    Slot2042.save_queue, 
-                    Tod4090.save_queue, 
-                    i
-                ))
+                self.parase_queue[i],
+                self._save_queue,
+                Sensor300dWidget.gui_queue,
+                PdoaRawWidget.gui_queue,
+                PdoaAngleWidget.gui_queue,
+                Tof2011Widget.gui_queue,
+                Poa3012Widget.gui_queue,
+                Sensor300d.save_queue,
+                Tof2011.save_queue,
+                Poa3012.save_queue,
+                Slot2042.save_queue,
+                Tod4090.save_queue,
+                i
+            ))
             p.start()
             self.p.append(p)
 
@@ -132,30 +132,30 @@ class Uwb:
 
     @staticmethod
     def parase_tlv_proc(
-            parase_queue, 
-            save_queue, 
-            sensor_gui_queue, 
-            pdoaraw_gui_queue,
-            pdoaangle_gui_queu, 
-            tof_gui_queue, 
-            poa_gui_queue,
-            sensor_queue, 
-            tof_queue, 
-            poa_queue, 
-            slot_queue, 
-            tod_queue, 
-            i
-        ):
+        parase_queue,
+        save_queue,
+        sensor_gui_queue,
+        pdoaraw_gui_queue,
+        pdoaangle_gui_queu,
+        tof_gui_queue,
+        poa_gui_queue,
+        sensor_queue,
+        tof_queue,
+        poa_queue,
+        slot_queue,
+        tod_queue,
+        i
+    ):
         logger.info(f'启动解析tlv测量值进程{i}, pid:{os.getpid()}')
         while True:
-            tlv_list = parase_queue.get()
+            raw_tlv_list = parase_queue.get()
             # logger.warning(f'{i} 处理{len(tlv_list)}包tlv')
 
             Sensor300d.history_data = {}
             Tof2011.history_data = {}
-            tlv_list = list(filter(lambda x: x.result, map(lambda x: x.parase(), tlv_list)))
+            tlv_list = list(filter(lambda x: x.result, map(lambda x: x.parase(), raw_tlv_list)))
 
-            tof_csv_data, sensor_csv_data, poa_csv_data, slot_csv_data, tod_csv_data, pickle_data = [], [], [], [], [], []
+            tof_csv_data, sensor_csv_data, poa_csv_data, slot_csv_data, tod_csv_data = [], [], [], [], []
             for tlv in tlv_list:
                 if tlv.proto_type == Sensor300d.PROTO_ID:
                     sensor_csv_data += tlv.result
@@ -167,8 +167,6 @@ class Uwb:
                     slot_csv_data += tlv.result
                 elif tlv.proto_type == Tod4090.PROTO_ID:
                     tod_csv_data += tlv.result
-
-                pickle_data.append(tlv.pickle_data)
 
             if config['gui']:
                 sensor_gui_queue.put(sensor_csv_data)
@@ -182,7 +180,7 @@ class Uwb:
             poa_queue.put(poa_csv_data)
             slot_queue.put(slot_csv_data)
             tod_queue.put(tod_csv_data)
-            save_queue.put(pickle_data)
+            save_queue.put(raw_tlv_list)
 
     def save_tlv_thread(self):
         logger.info(f'启动pickle数据保存线程')
