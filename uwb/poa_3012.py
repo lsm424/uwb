@@ -7,13 +7,13 @@ import struct
 import time
 import pandas
 import numpy as np
-import multiprocessing
+from common.cnt_queue import CntQueue as Queue
 
 
 class Poa3012:
     PROTO_ID = 0x3012
     fieldnames = ['rolling', 'AnchorId', 'TagID', 'Dist_mm', 'POA_deg', 'timestampe']
-    save_queue = multiprocessing.Queue()
+    save_queue = Queue()
 
     @staticmethod
     def save(pkgs):

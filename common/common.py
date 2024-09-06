@@ -1,3 +1,9 @@
+'''
+Author: wadesmli
+Date: 2024-05-18 14:48:08
+LastEditTime: 2024-09-06 19:41:40
+Description: 
+'''
 import csv
 import os
 import time
@@ -50,7 +56,8 @@ def save(writer, queue, csv_file):
     while True:
         pkgs = queue.get()
         while not queue.empty() and len(pkgs) < 2000:
-            pkgs += queue.get(block=False)
+            pkgs += queue.get(block=True)
+
         if len(pkgs) == 0:
             continue
         writer.writerows(pkgs)

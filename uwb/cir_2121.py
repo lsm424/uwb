@@ -6,7 +6,7 @@ from common.common import get_header, save
 import struct
 import pandas
 import numpy as np
-import multiprocessing
+from common.cnt_queue import CntQueue as Queue
 
 
 class Cir2121:
@@ -15,7 +15,7 @@ class Cir2121:
     # csv_file = open(f'{NAME}.csv', 'a', newline='', encoding='utf-8')
     fieldnames = ['rolling', 'TagID', 'AnchorIdx', 'IQ', 'sync_time', 'reply_time']
     # writer = csv.writer(csv_file)
-    save_queue = multiprocessing.Queue()
+    save_queue = Queue()
     # t = threading.Thread(target=save, args=(writer, save_queue, csv_file), daemon=True)
     # t.start()
 

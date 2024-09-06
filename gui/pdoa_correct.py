@@ -2,7 +2,7 @@ import random
 import threading
 import time
 from functools import reduce
-from multiprocessing import Process
+from common.cnt_queue import CntQueue as Queue
 from PySide6.QtCore import QTimer, QTime, Signal, QThread
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QComboBox, QLabel, QApplication, QLineEdit, QPushButton, QFileDialog, QPlainTextEdit, QMessageBox
 import pyqtgraph as pg

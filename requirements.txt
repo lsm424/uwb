@@ -7,3 +7,6 @@ pyserial==3.5
 ruamel.base==1.0.0
 scipy==1.11.4
 ruamel.yaml==0.17.21
+pandas==2.2.2
+pyside6==6.7.1
+pyqtgraph==0.13.7

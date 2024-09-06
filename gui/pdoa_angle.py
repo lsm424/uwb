@@ -1,7 +1,6 @@
-import random
 import threading
 import time
-from multiprocessing import Queue
+from common.cnt_queue import CntQueue as Queue
 from PySide6.QtCore import QTimer, QTime, Signal, QThread
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QComboBox, QLabel, QApplication
 import pyqtgraph as pg
@@ -231,7 +230,7 @@ class PdoaAngleWidget(QWidget):
         while True:
             pkgs = gui_queue.get()
             while not gui_queue.empty() and len(pkgs) < 10000:
-                pkgs += gui_queue.get(block=False)
+                pkgs += gui_queue.get(block=True)
                 QApplication.processEvents()
             pkgs = pd.DataFrame(pkgs, columns=['rolling', 'AnchorId', 'TagID', 'TOA', 'POA_SYNC', 'POA_REPLY'])
             if len(pkgs) == 0:

@@ -1,5 +1,4 @@
 import logging
-import multiprocessing
 import queue
 import struct
 import threading
@@ -9,6 +8,7 @@ import numpy as np
 import csv
 import os
 from common.common import get_header, save
+from common.cnt_queue import CntQueue as Queue
 
 
 class Tof2011:
@@ -20,7 +20,7 @@ class Tof2011:
     # csv_file = open(f'{NAME}.csv', 'a', newline='', encoding='utf-8')
     # writer = csv.writer(csv_file)
     gui_data = []
-    save_queue = multiprocessing.Queue()
+    save_queue = Queue()
     # t = None
 
     @staticmethod

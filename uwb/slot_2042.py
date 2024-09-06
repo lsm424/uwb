@@ -5,7 +5,7 @@ import os
 import numpy as np
 import csv
 from common.common import get_header, save
-import multiprocessing
+from common.cnt_queue import CntQueue as Queue
 
 
 class Slot2042:
@@ -15,7 +15,7 @@ class Slot2042:
     # csv_file = open(f'{NAME}.csv', 'a', newline='', encoding='utf-8')
     fieldnames = ['rolling', 'TagID', 'AnchorIdx', 'AnchorId']
     # writer = csv.writer(csv_file)
-    save_queue = multiprocessing.Queue()
+    save_queue = Queue()
     # t = threading.Thread(target=save, args=(writer, save_queue, csv_file), daemon=True)
     # t.start()
 

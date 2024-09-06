@@ -23,15 +23,15 @@ from uwb.tof_2011 import Tof2011
 from uwb.poa_3012 import Poa3012
 from uwb.tod_4090 import Tod4090
 from uwb.slot_2042 import Slot2042
-
+from common.cnt_queue import CntQueue as Queue
 # Uwb整体逻辑
 
 
 class Uwb:
     def __init__(self):
 
-        self._save_queue = multiprocessing.Queue()
-        self.parase_queue = [multiprocessing.Queue()
+        self._save_queue = Queue()
+        self.parase_queue = [Queue()
                              for i in range(config['parase_worker_cnt'])]
         self.p = []
         for i in range(config['parase_worker_cnt']):
@@ -187,6 +187,6 @@ class Uwb:
         while True:
             pkgs = self._save_queue.get()
             while not self._save_queue.empty() and len(pkgs) < 2000:
-                pkgs += self._save_queue.get(block=False)
+                pkgs += self._save_queue.get(block=True)
             list(map(lambda x: self.pickle_file.write(pickle.dumps(x)), pkgs))
             self.pickle_cnt += len(pkgs)

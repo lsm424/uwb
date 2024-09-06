@@ -1,11 +1,11 @@
 import queue
 import struct
 import threading
-import multiprocessing
 import numpy as np
 import csv
 import os
 from common.common import get_header, save
+from common.cnt_queue import CntQueue as Queue
 
 
 class Tod4090:
@@ -14,7 +14,7 @@ class Tod4090:
     fieldnames = ['rolling', 'AnchorId', 'TagID', 'TOA', 'POA_SYNC', 'POA_REPLY']
     # csv_file = open(f'{NAME}.csv', 'a', newline='', encoding='utf-8')
     # writer = csv.writer(csv_file)
-    save_queue = multiprocessing.Queue()
+    save_queue = Queue()
     # t = threading.Thread(target=save, args=(
     #     writer, save_queue, csv_file), daemon=True)
     # t.start()

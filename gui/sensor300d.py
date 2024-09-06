@@ -6,7 +6,7 @@ from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QComboBox, QLab
 import pyqtgraph as pg
 import math
 import numpy as np
-from multiprocessing import Queue
+from common.cnt_queue import CntQueue as Queue
 from common.common import logger, config
 from uwb.tof_2011 import Tof2011
 
@@ -203,7 +203,7 @@ class Sensor300dWidget(QWidget):
             while True:
                 pkgs = gui_queue.get()
                 while not gui_queue.empty() and len(pkgs) < 500:
-                    pkgs += gui_queue.get(block=False)
+                    pkgs += gui_queue.get(block=True)
                 if not pkgs:
                     continue
                 

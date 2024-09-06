@@ -1,11 +1,11 @@
 import csv
-import multiprocessing
 import queue
 import threading
 import time
 import os
 from common.common import get_header, logger, save
 import struct
+from common.cnt_queue import CntQueue as Queue
 
 
 class Sensor300d:
@@ -18,7 +18,7 @@ class Sensor300d:
     # csv_file = open(f'{NAME}.csv', 'a', newline='', encoding='utf-8')
     gui_data = []
     # writer = csv.writer(csv_file)
-    save_queue = multiprocessing.Queue()
+    save_queue = Queue()
     # t = threading.Thread(target=save, args=(writer, save_queue, csv_file), daemon=True)
     # t.start()
 

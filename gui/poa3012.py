@@ -2,7 +2,7 @@ import random
 import threading
 import time
 from functools import reduce
-from multiprocessing import Queue
+from common.cnt_queue import CntQueue as Queue
 from PySide6.QtCore import QTimer, QTime, Signal
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QComboBox, QLabel, QApplication
 import pyqtgraph as pg
@@ -243,7 +243,7 @@ class Poa3012Widget(QWidget):
         while True:
             pkgs = gui_queue.get()
             while not gui_queue.empty() and len(pkgs) < 1000:
-                pkgs += gui_queue.get(block=False)
+                pkgs += gui_queue.get(block=True)
                 QApplication.processEvents()
             pkgs = np.array(pkgs)
             if len(pkgs) == 0:
