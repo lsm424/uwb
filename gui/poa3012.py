@@ -262,6 +262,7 @@ class Poa3012Widget(QWidget):
 
             self.gui_data = np.vstack((self.gui_data, pkgs)) if len(self.gui_data) > 0 else pkgs
             self.gui_data = self.gui_data[np.argsort(self.gui_data[:, 0])][-5000:]  # 按照滚码排序
+            self.gui_data=self.gui_data.astype(np.int64)
 
             # 每3秒更新下拉列表
             if self.cur_tag_id is None or time.time() - self.last_update_tagid_time > 3:

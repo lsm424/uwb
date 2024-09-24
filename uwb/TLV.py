@@ -76,13 +76,14 @@ class Tlv:
         self.body_len = body_len
         self.rolling = rolling
         self.proto_type = proto_type
-        self.handler = Tlv.PROTO_HANDLER[proto_type]
+        self.handler = Tlv.PROTO_HANDLER.get(self.proto_type, None) # Tlv.PROTO_HANDLER[proto_type]
         self.result = None
         self.pickle_data = {'raw_data': self.raw_data,
                             'addr': self.addr, 'timestampe': time()}
 
     def parase(self):
-        self.result = self.handler.parase(self.body_len, self.body_data)
+        if self.handler is not None:
+            self.result = self.handler.parase(self.body_len, self.body_data)
         # if not self.result:
         #     self.pre_parase()
         return self

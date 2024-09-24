@@ -56,7 +56,8 @@ class Access:
             lengths = d[headerPos + 2] + (d[headerPos + 3].astype(np.uint16) << 8)
             tailPos = headerPos + lengths + 4
             types = d[headerPos + 4] + (d[headerPos + 5].astype(np.uint16) << 8)
-            validFrames = np.logical_and(np.logical_and(tailPos < len(d), lengths < 4096), np.isin(types, Tlv.TYPES))
+            # validFrames = np.logical_and(np.logical_and(tailPos < len(d), lengths < 4096), np.isin(types, Tlv.TYPES))
+            validFrames = np.logical_and(tailPos < len(d), lengths < 4096)
             headerPos = headerPos[validFrames]
             if len(headerPos) == 0:
                 buffer[src] = d

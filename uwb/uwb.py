@@ -180,7 +180,7 @@ class Uwb:
             poa_queue.put(poa_csv_data)
             slot_queue.put(slot_csv_data)
             tod_queue.put(tod_csv_data)
-            save_queue.put(raw_tlv_list)
+            save_queue.put(list(map(lambda x: x.pickle_data, raw_tlv_list)))
 
     def save_tlv_thread(self):
         logger.info(f'启动pickle数据保存线程')
